@@ -91,7 +91,7 @@ class PicoDet():
 
     def get_color_map_list(self, num_classes):
         color_map = num_classes * [0, 0, 0]
-        for i in range(0, num_classes):
+        for i in range(num_classes):
             j = 0
             lab = i
             while lab:
@@ -132,14 +132,17 @@ class PicoDet():
 
             cv2.rectangle(
                 srcimg, (xmin, ymin), (xmax, ymax), color, thickness=2)
-            print(self.classes[classid] + ': ' + str(round(conf, 3)))
+            print(f'{self.classes[classid]}: {str(round(conf, 3))}')
             cv2.putText(
                 srcimg,
-                self.classes[classid] + ':' + str(round(conf, 3)), (xmin,
-                                                                    ymin - 10),
+                f'{self.classes[classid]}:{str(round(conf, 3))}',
+                (xmin, ymin - 10),
                 cv2.FONT_HERSHEY_SIMPLEX,
-                0.8, (0, 255, 0),
-                thickness=2)
+                0.8,
+                (0, 255, 0),
+                thickness=2,
+            )
+
 
         return srcimg
 

@@ -27,10 +27,10 @@ def mkdirs(d):
         os.makedirs(d)
 
 
-seq_root = './{}/images/train'.format(MOT_data)
-label_root = './{}/labels_with_ids/train'.format(MOT_data)
+seq_root = f'./{MOT_data}/images/train'
+label_root = f'./{MOT_data}/labels_with_ids/train'
 mkdirs(label_root)
-seqs = [s for s in os.listdir(seq_root)]
+seqs = list(os.listdir(seq_root))
 
 tid_curr = 0
 tid_last = -1
@@ -48,11 +48,11 @@ for seq in seqs:
     mkdirs(seq_label_root)
 
     for fid, tid, x, y, w, h, mark, label, _ in gt:
-        if mark == 0 or not label == 1:
+        if mark == 0 or label != 1:
             continue
         fid = int(fid)
         tid = int(tid)
-        if not tid == tid_last:
+        if tid != tid_last:
             tid_curr += 1
             tid_last = tid
         x += w / 2

@@ -203,8 +203,9 @@ def trt_perf_analysis(raw_df):
         lambda x: (float(x[infer_fp16]) - float(x[infer_fp32])) / float(x[infer_fp32]),
         axis=1)
     new_df["fp32_gpu_diff"] = new_df[["inference_time(ms)", infer_fp32]].apply(
-        lambda x: (float(x[infer_fp32]) - float(x[infer_fp32])) / float(x["inference_time(ms)"]),
-        axis=1)
+        lambda x: 0.0 / float(x["inference_time(ms)"]), axis=1
+    )
+
     new_df["fp16_int8_diff"] = new_df[[infer_fp16, infer_int8]].apply(
         lambda x: (float(x[infer_int8]) - float(x[infer_fp16])) / float(x[infer_fp16]),
         axis=1)
@@ -288,12 +289,12 @@ def main():
 
     if args.analysis_trt:
         trt_df = trt_perf_analysis(raw_df)
-        trt_df.to_excel("trt_analysis_{}".format(args.output_name))
+        trt_df.to_excel(f"trt_analysis_{args.output_name}")
 
     if args.analysis_mkl:
         mkl_df, thread_df = mkl_perf_analysis(raw_df)
-        mkl_df.to_excel("mkl_enable_analysis_{}".format(args.output_name))
-        thread_df.to_excel("mkl_threads_analysis_{}".format(args.output_name))
+        mkl_df.to_excel(f"mkl_enable_analysis_{args.output_name}")
+        thread_df.to_excel(f"mkl_threads_analysis_{args.output_name}")
 
 
 if __name__ == "__main__":

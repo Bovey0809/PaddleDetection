@@ -177,9 +177,7 @@ class KalmanFilter(object):
         ]
         sqr = np.square(np.r_[std_pos, std_vel]).T
 
-        motion_cov = []
-        for i in range(len(mean)):
-            motion_cov.append(np.diag(sqr[i]))
+        motion_cov = [np.diag(sqr[i]) for i in range(len(mean))]
         motion_cov = np.asarray(motion_cov)
 
         mean = np.dot(mean, self._motion_mat.T)
@@ -261,7 +259,6 @@ class KalmanFilter(object):
                 lower=True,
                 check_finite=False,
                 overwrite_b=True)
-            squared_maha = np.sum(z * z, axis=0)
-            return squared_maha
+            return np.sum(z * z, axis=0)
         else:
             raise ValueError('invalid distance metric')

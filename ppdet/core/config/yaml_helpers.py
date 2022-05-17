@@ -40,8 +40,7 @@ def _make_python_constructor(cls):
             try:
                 return cls(**kwargs)
             except Exception as ex:
-                print("Error when construct {} instance from yaml config".
-                      format(cls.__name__))
+                print(f"Error when construct {cls.__name__} instance from yaml config")
                 raise ex
 
     return python_constructor
@@ -62,7 +61,7 @@ def _make_python_representer(cls):
             data = obj.__dict__
         if '_id' in data:
             del data['_id']
-        return dumper.represent_mapping(u'!{}'.format(cls.__name__), data)
+        return dumper.represent_mapping(f'!{cls.__name__}', data)
 
     return python_representer
 
@@ -77,8 +76,7 @@ def serializable(cls):
 
     Returns: cls
     """
-    yaml.add_constructor(u'!{}'.format(cls.__name__),
-                         _make_python_constructor(cls))
+    yaml.add_constructor(f'!{cls.__name__}', _make_python_constructor(cls))
     yaml.add_representer(cls, _make_python_representer(cls))
     return cls
 

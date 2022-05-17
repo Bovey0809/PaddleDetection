@@ -187,8 +187,7 @@ class Detector(object):
             start_idx += boxes_num
         boxes = np.concatenate(filter_boxes)
         filter_num = np.array(filter_num)
-        filter_res = {'boxes': boxes, 'boxes_num': filter_num}
-        return filter_res
+        return {'boxes': boxes, 'boxes_num': filter_num}
 
     def predict(self, repeats=1):
         '''
@@ -202,7 +201,7 @@ class Detector(object):
         '''
         # model prediction
         np_boxes, np_masks = None, None
-        for i in range(repeats):
+        for _ in range(repeats):
             self.predictor.run()
             output_names = self.predictor.get_output_names()
             boxes_tensor = self.predictor.get_output_handle(output_names[0])
@@ -212,8 +211,7 @@ class Detector(object):
             if self.pred_config.mask:
                 masks_tensor = self.predictor.get_output_handle(output_names[2])
                 np_masks = masks_tensor.copy_to_cpu()
-        result = dict(boxes=np_boxes, masks=np_masks, boxes_num=np_boxes_num)
-        return result
+        return dict(boxes=np_boxes, masks=np_masks, boxes_num=np_boxes_num)
 
     def merge_batch_result(self, batch_result):
         if len(batch_result) == 1:
@@ -294,7 +292,7 @@ class Detector(object):
 
             results.append(result)
             if visual:
-                print('Test iter {}'.format(i))
+                print(f'Test iter {i}')
 
         if save_file is not None:
             Path(self.output_dir).mkdir(exist_ok=True)
@@ -363,13 +361,18 @@ class Detector(object):
                     per_result = [
                         {
                             'image_file': image_file,
-                            'bbox':
-                            [box[2], box[3], box[4] - box[2],
-                             box[5] - box[3]],  # xyxy -> xywh
+                            'bbox': [
+                                box[2],
+                                box[3],
+                                box[4] - box[2],
+                                box[5] - box[3],
+                            ],  # xyxy -> xywh
                             'score': box[1],
                             'category_id': int(box[0]),
-                        } for k, box in enumerate(boxes.tolist())
+                        }
+                        for box in boxes.tolist()
                     ]
+
 
                 elif 'segm' in result:
                     import pycocotools.mask as mask_util
@@ -467,7 +470,7 @@ class DetectorSOLOv2(Detector):
                             'cate_score': confidence score of segm, shape:[N]
         '''
         np_label, np_score, np_segms = None, None, None
-        for i in range(repeats):
+        for _ in range(repeats):
             self.predictor.run()
             output_names = self.predictor.get_output_names()
             np_boxes_num = self.predictor.get_output_handle(output_names[
@@ -479,12 +482,9 @@ class DetectorSOLOv2(Detector):
             np_segms = self.predictor.get_output_handle(output_names[
                 3]).copy_to_cpu()
 
-        result = dict(
-            segm=np_segms,
-            label=np_label,
-            score=np_score,
-            boxes_num=np_boxes_num)
-        return result
+        return dict(
+            segm=np_segms, label=np_label, score=np_score, boxes_num=np_boxes_num
+        )
 
 
 class DetectorPicoDet(Detector):
@@ -557,12 +557,12 @@ class DetectorPicoDet(Detector):
                             matix element:[class, score, x_min, y_min, x_max, y_max]
         '''
         np_score_list, np_boxes_list = [], []
-        for i in range(repeats):
+        for _ in range(repeats):
             self.predictor.run()
             np_score_list.clear()
             np_boxes_list.clear()
             output_names = self.predictor.get_output_names()
-            num_outs = int(len(output_names) / 2)
+            num_outs = len(output_names) // 2
             for out_idx in range(num_outs):
                 np_score_list.append(
                     self.predictor.get_output_handle(output_names[out_idx])
@@ -570,8 +570,7 @@ class DetectorPicoDet(Detector):
                 np_boxes_list.append(
                     self.predictor.get_output_handle(output_names[
                         out_idx + num_outs]).copy_to_cpu())
-        result = dict(boxes=np_score_list, boxes_num=np_boxes_list)
-        return result
+        return dict(boxes=np_score_list, boxes_num=np_boxes_list)
 
 
 def create_inputs(imgs, im_info):
@@ -602,8 +601,8 @@ def create_inputs(imgs, im_info):
     inputs['scale_factor'] = np.concatenate(scale_factor, axis=0)
 
     imgs_shape = [[e.shape[1], e.shape[2]] for e in imgs]
-    max_shape_h = max([e[0] for e in imgs_shape])
-    max_shape_w = max([e[1] for e in imgs_shape])
+    max_shape_h = max(e[0] for e in imgs_shape)
+    max_shape_w = max(e[1] for e in imgs_shape)
     padding_imgs = []
     for img in imgs:
         im_c, im_h, im_w = img.shape[:]
@@ -661,10 +660,10 @@ class PredictConfig():
 
     def print_config(self):
         print('-----------  Model Configuration -----------')
-        print('%s: %s' % ('Model Arch', self.arch))
-        print('%s: ' % ('Transform Order'))
+        print(f'Model Arch: {self.arch}')
+        print('Transform Order: ')
         for op_info in self.preprocess_infos:
-            print('--%s: %s' % ('transform op', op_info['type']))
+            print(f"--transform op: {op_info['type']}")
         print('--------------------------------------------')
 
 
@@ -702,8 +701,9 @@ def load_predictor(model_dir,
     """
     if device != 'GPU' and run_mode != 'paddle':
         raise ValueError(
-            "Predict by TensorRT mode: {}, expect device=='GPU', but device == {}"
-            .format(run_mode, device))
+            f"Predict by TensorRT mode: {run_mode}, expect device=='GPU', but device == {device}"
+        )
+
     config = Config(
         os.path.join(model_dir, 'model.pdmodel'),
         os.path.join(model_dir, 'model.pdiparams'))
@@ -729,14 +729,12 @@ def load_predictor(model_dir,
                 print(
                     "The current environment does not support `mkldnn`, so disable mkldnn."
                 )
-                pass
-
     precision_map = {
         'trt_int8': Config.Precision.Int8,
         'trt_fp32': Config.Precision.Float32,
         'trt_fp16': Config.Precision.Half
     }
-    if run_mode in precision_map.keys():
+    if run_mode in precision_map:
         config.enable_tensorrt_engine(
             workspace_size=(1 << 25) * batch_size,
             max_batch_size=batch_size,
@@ -777,10 +775,14 @@ def get_test_images(infer_dir, infer_img):
     """
     assert infer_img is not None or infer_dir is not None, \
         "--image_file or --image_dir should be set"
-    assert infer_img is None or os.path.isfile(infer_img), \
-            "{} is not a file".format(infer_img)
-    assert infer_dir is None or os.path.isdir(infer_dir), \
-            "{} is not a directory".format(infer_dir)
+    assert infer_img is None or os.path.isfile(
+        infer_img
+    ), f"{infer_img} is not a file"
+
+    assert infer_dir is None or os.path.isdir(
+        infer_dir
+    ), f"{infer_dir} is not a directory"
+
 
     # infer_img has a higher priority
     if infer_img and os.path.isfile(infer_img):
@@ -788,16 +790,15 @@ def get_test_images(infer_dir, infer_img):
 
     images = set()
     infer_dir = os.path.abspath(infer_dir)
-    assert os.path.isdir(infer_dir), \
-        "infer_dir {} is not a directory".format(infer_dir)
+    assert os.path.isdir(infer_dir), f"infer_dir {infer_dir} is not a directory"
     exts = ['jpg', 'jpeg', 'png', 'bmp']
     exts += [ext.upper() for ext in exts]
     for ext in exts:
-        images.update(glob.glob('{}/*.{}'.format(infer_dir, ext)))
+        images.update(glob.glob(f'{infer_dir}/*.{ext}'))
     images = list(images)
 
-    assert len(images) > 0, "no image found in {}".format(infer_dir)
-    print("Found {} inference images in total.".format(len(images)))
+    assert images, f"no image found in {infer_dir}"
+    print(f"Found {len(images)} inference images in total.")
 
     return images
 
@@ -832,13 +833,13 @@ def visualize(image_list, result, labels, output_dir='output/', threshold=0.5):
             os.makedirs(output_dir)
         out_path = os.path.join(output_dir, img_name)
         im.save(out_path, quality=95)
-        print("save result to: " + out_path)
+        print(f"save result to: {out_path}")
 
 
 def print_arguments(args):
     print('-----------  Running Arguments -----------')
     for arg, value in sorted(vars(args).items()):
-        print('%s: %s' % (arg, value))
+        print(f'{arg}: {value}')
     print('------------------------------------------')
 
 

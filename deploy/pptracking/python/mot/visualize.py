@@ -50,7 +50,7 @@ def get_color_map_list(num_classes):
         color_map (list): RGB color list
     """
     color_map = num_classes * [0, 0, 0]
-    for i in range(0, num_classes):
+    for i in range(num_classes):
         j = 0
         lab = i
         while lab:
@@ -89,9 +89,15 @@ def draw_box(im, np_boxes, labels, threshold=0.5):
 
         if len(bbox) == 4:
             xmin, ymin, xmax, ymax = bbox
-            print('class_id:{:d}, confidence:{:.4f}, left_top:[{:.2f},{:.2f}],'
-                  'right_bottom:[{:.2f},{:.2f}]'.format(
-                      int(clsid), score, xmin, ymin, xmax, ymax))
+            print(
+                (
+                    'class_id:{:d}, confidence:{:.4f}, left_top:[{:.2f},{:.2f}],'
+                    'right_bottom:[{:.2f},{:.2f}]'.format(
+                        clsid, score, xmin, ymin, xmax, ymax
+                    )
+                )
+            )
+
             # draw bbox
             draw.line(
                 [(xmin, ymin), (xmin, ymax), (xmax, ymax), (xmax, ymin),
@@ -118,8 +124,7 @@ def draw_box(im, np_boxes, labels, threshold=0.5):
 
 def get_color(idx):
     idx = idx * 3
-    color = ((37 * idx) % 255, (17 * idx) % 255, (29 * idx) % 255)
-    return color
+    return (37 * idx) % 255, (17 * idx) % 255, (29 * idx) % 255
 
 
 def plot_tracking(image,
@@ -149,15 +154,17 @@ def plot_tracking(image,
         x1, y1, w, h = tlwh
         intbox = tuple(map(int, (x1, y1, x1 + w, y1 + h)))
         obj_id = int(obj_ids[i])
-        id_text = 'ID: {}'.format(int(obj_id))
+        id_text = f'ID: {obj_id}'
         if ids2names != []:
             assert len(
                 ids2names) == 1, "plot_tracking only supports single classes."
-            id_text = 'ID: {}_'.format(ids2names[0]) + id_text
+            id_text = f'ID: {ids2names[0]}_' + id_text
         _line_thickness = 1 if obj_id <= 0 else line_thickness
         color = get_color(abs(obj_id))
         cv2.rectangle(
-            im, intbox[0:2], intbox[2:4], color=color, thickness=line_thickness)
+            im, intbox[:2], intbox[2:4], color=color, thickness=line_thickness
+        )
+
         cv2.putText(
             im,
             id_text, (intbox[0], intbox[1] - 25),
@@ -177,10 +184,12 @@ def plot_tracking(image,
         entrance_line = tuple(map(int, entrance))
         cv2.rectangle(
             im,
-            entrance_line[0:2],
+            entrance_line[:2],
             entrance_line[2:4],
             color=(0, 255, 255),
-            thickness=line_thickness)
+            thickness=line_thickness,
+        )
+
     return im
 
 
@@ -203,25 +212,26 @@ def plot_tracking_dict(image,
     text_thickness = 2
     line_thickness = max(1, int(image.shape[1] / 500.))
 
-    if num_classes == 1:
-        if records is not None:
-            start = records[-1].find('Total')
-            end = records[-1].find('In')
-            cv2.putText(
-                im,
-                records[-1][start:end], (0, int(40 * text_scale) + 10),
-                cv2.FONT_ITALIC,
-                text_scale, (0, 0, 255),
-                thickness=text_thickness)
+    if num_classes == 1 and records is not None:
+        start = records[-1].find('Total')
+        end = records[-1].find('In')
+        cv2.putText(
+            im,
+            records[-1][start:end], (0, int(40 * text_scale) + 10),
+            cv2.FONT_ITALIC,
+            text_scale, (0, 0, 255),
+            thickness=text_thickness)
 
     if num_classes == 1 and do_entrance_counting:
         entrance_line = tuple(map(int, entrance))
         cv2.rectangle(
             im,
-            entrance_line[0:2],
+            entrance_line[:2],
             entrance_line[2:4],
             color=(0, 255, 255),
-            thickness=line_thickness)
+            thickness=line_thickness,
+        )
+
         # find start location for entrance counting data
         start = records[-1].find('In')
         cv2.putText(
@@ -255,20 +265,22 @@ def plot_tracking_dict(image,
                     center_traj[cls_id][obj_id] = deque(maxlen=30)
                 center_traj[cls_id][obj_id].append(center)
 
-            id_text = '{}'.format(int(obj_id))
+            id_text = f'{obj_id}'
             if ids2names != []:
-                id_text = '{}_{}'.format(ids2names[cls_id], id_text)
+                id_text = f'{ids2names[cls_id]}_{id_text}'
             else:
-                id_text = 'class{}_{}'.format(cls_id, id_text)
+                id_text = f'class{cls_id}_{id_text}'
 
             _line_thickness = 1 if obj_id <= 0 else line_thickness
             color = get_color(abs(obj_id))
             cv2.rectangle(
                 im,
-                intbox[0:2],
+                intbox[:2],
                 intbox[2:4],
                 color=color,
-                thickness=line_thickness)
+                thickness=line_thickness,
+            )
+
             cv2.putText(
                 im,
                 id_text, (intbox[0], intbox[1] - 25),

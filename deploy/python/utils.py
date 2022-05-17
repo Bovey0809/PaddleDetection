@@ -213,8 +213,7 @@ class Timer(Times):
             total_time = total_time + track_time
         total_time = round(total_time, 4)
         print("------------------ Inference Time Info ----------------------")
-        print("total_time(ms): {}, img_num: {}".format(total_time * 1000,
-                                                       self.img_num))
+        print(f"total_time(ms): {total_time * 1000}, img_num: {self.img_num}")
         preprocess_time = round(pre_time / max(1, self.img_num),
                                 4) if average else pre_time
         postprocess_time = round(post_time / max(1, self.img_num),
@@ -225,9 +224,7 @@ class Timer(Times):
                               4) if average else track_time
 
         average_latency = total_time / max(1, self.img_num)
-        qps = 0
-        if total_time > 0:
-            qps = 1 / average_latency
+        qps = 1 / average_latency if total_time > 0 else 0
         print("average latency time(ms): {:.2f}, QPS: {:2f}".format(
             average_latency * 1000, qps))
         if self.with_tracker:
@@ -242,19 +239,24 @@ class Timer(Times):
                        postprocess_time * 1000))
 
     def report(self, average=False):
-        dic = {}
         pre_time = self.preprocess_time_s.value()
         infer_time = self.inference_time_s.value()
         post_time = self.postprocess_time_s.value()
         track_time = self.tracking_time_s.value()
 
-        dic['preprocess_time_s'] = round(pre_time / max(1, self.img_num),
-                                         4) if average else pre_time
-        dic['inference_time_s'] = round(infer_time / max(1, self.img_num),
-                                        4) if average else infer_time
-        dic['postprocess_time_s'] = round(post_time / max(1, self.img_num),
-                                          4) if average else post_time
-        dic['img_num'] = self.img_num
+        dic = {
+            'preprocess_time_s': round(pre_time / max(1, self.img_num), 4)
+            if average
+            else pre_time,
+            'inference_time_s': round(infer_time / max(1, self.img_num), 4)
+            if average
+            else infer_time,
+            'postprocess_time_s': round(post_time / max(1, self.img_num), 4)
+            if average
+            else post_time,
+            'img_num': self.img_num,
+        }
+
         total_time = pre_time + infer_time + post_time
         if self.with_tracker:
             dic['tracking_time_s'] = round(track_time / max(1, self.img_num),

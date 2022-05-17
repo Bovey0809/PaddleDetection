@@ -102,12 +102,11 @@ def get_affine_transform(center,
     dst[1, :] = np.array([dst_w * 0.5, dst_h * 0.5]) + dst_dir
     dst[2, :] = _get_3rd_point(dst[0, :], dst[1, :])
 
-    if inv:
-        trans = cv2.getAffineTransform(np.float32(dst), np.float32(src))
-    else:
-        trans = cv2.getAffineTransform(np.float32(src), np.float32(dst))
-
-    return trans
+    return (
+        cv2.getAffineTransform(np.float32(dst), np.float32(src))
+        if inv
+        else cv2.getAffineTransform(np.float32(src), np.float32(dst))
+    )
 
 
 def get_warp_matrix(theta, size_input, size_dst, size_target):
@@ -158,9 +157,7 @@ def rotate_point(pt, angle_rad):
     sn, cs = np.sin(angle_rad), np.cos(angle_rad)
     new_x = pt[0] * cs - pt[1] * sn
     new_y = pt[0] * sn + pt[1] * cs
-    rotated_pt = [new_x, new_y]
-
-    return rotated_pt
+    return [new_x, new_y]
 
 
 def _get_3rd_point(a, b):
@@ -180,9 +177,7 @@ def _get_3rd_point(a, b):
     assert len(a) == 2
     assert len(b) == 2
     direction = a - b
-    third_pt = b + np.array([-direction[1], direction[0]], dtype=np.float32)
-
-    return third_pt
+    return b + np.array([-direction[1], direction[0]], dtype=np.float32)
 
 
 class TopDownEvalAffine(object):
@@ -211,17 +206,12 @@ class TopDownEvalAffine(object):
             trans = get_warp_matrix(
                 rot, center * 2.0,
                 [self.trainsize[0] - 1.0, self.trainsize[1] - 1.0], scale)
-            image = cv2.warpAffine(
-                image,
-                trans, (int(self.trainsize[0]), int(self.trainsize[1])),
-                flags=cv2.INTER_LINEAR)
         else:
             trans = get_affine_transform(center, scale, rot, self.trainsize)
-            image = cv2.warpAffine(
-                image,
-                trans, (int(self.trainsize[0]), int(self.trainsize[1])),
-                flags=cv2.INTER_LINEAR)
-
+        image = cv2.warpAffine(
+            image,
+            trans, (int(self.trainsize[0]), int(self.trainsize[1])),
+            flags=cv2.INTER_LINEAR)
         return image, im_info
 
 

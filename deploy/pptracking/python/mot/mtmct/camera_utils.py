@@ -49,19 +49,15 @@ def st_filter(st_mask, cid_tids, cid_tid_dict):
             match_dire = True
             cam_dist = CAM_DIST[i_cid - 41][j_cid - 41]
             # if time overlopped
-            if i_iot[0] - cam_dist < j_iot[0] and j_iot[0] < i_iot[
-                    1] + cam_dist:
+            if i_iot[0] - cam_dist < j_iot[0] < i_iot[1] + cam_dist:
                 match_dire = False
-            if i_iot[0] - cam_dist < j_iot[1] and j_iot[1] < i_iot[
-                    1] + cam_dist:
+            if i_iot[0] - cam_dist < j_iot[1] < i_iot[1] + cam_dist:
                 match_dire = False
 
-            # not match after go out
-            if i_dire[1] in [1, 2]:  # i out
+            if i_dire[1] in [1, 2]:
                 if i_iot[0] < j_iot[1] + cam_dist:
                     match_dire = False
 
-            if i_dire[1] in [1, 2]:
                 if i_dire[0] in [3] and i_cid > j_cid:
                     match_dire = False
                 if i_dire[0] in [4] and i_cid < j_cid:
@@ -72,16 +68,17 @@ def st_filter(st_mask, cid_tids, cid_tid_dict):
                     match_dire = False
                 if i_iot[1] > 199:
                     match_dire = False
-            if i_cid in [46] and i_dire[1] in [3]:
-                if i_iot[0] < j_iot[1] + cam_dist:
-                    match_dire = False
+            if (
+                i_cid in [46]
+                and i_dire[1] in [3]
+                and i_iot[0] < j_iot[1] + cam_dist
+            ):
+                match_dire = False
 
-            # match after come into
             if i_dire[0] in [1, 2]:
                 if i_iot[1] > j_iot[0] - cam_dist:
                     match_dire = False
 
-            if i_dire[0] in [1, 2]:
                 if i_dire[1] in [3] and i_cid > j_cid:
                     match_dire = False
                 if i_dire[1] in [4] and i_cid < j_cid:
@@ -98,43 +95,73 @@ def st_filter(st_mask, cid_tids, cid_tid_dict):
                         i_dire[1] in [3] and j_dire[1] in [4]):
                     match_dire = False
                 # filter before going next scene
-                if i_dire[1] in [3] and i_cid < j_cid:
-                    if i_iot[1] > j_iot[1] - cam_dist:
-                        match_dire = False
-                if i_dire[1] in [4] and i_cid > j_cid:
-                    if i_iot[1] > j_iot[1] - cam_dist:
-                        match_dire = False
+                if (
+                    i_dire[1] in [3]
+                    and i_cid < j_cid
+                    and i_iot[1] > j_iot[1] - cam_dist
+                ):
+                    match_dire = False
+                if (
+                    i_dire[1] in [4]
+                    and i_cid > j_cid
+                    and i_iot[1] > j_iot[1] - cam_dist
+                ):
+                    match_dire = False
 
-                if i_dire[0] in [3] and i_cid < j_cid:
-                    if i_iot[0] < j_iot[0] + cam_dist:
-                        match_dire = False
-                if i_dire[0] in [4] and i_cid > j_cid:
-                    if i_iot[0] < j_iot[0] + cam_dist:
-                        match_dire = False
+                if (
+                    i_dire[0] in [3]
+                    and i_cid < j_cid
+                    and i_iot[0] < j_iot[0] + cam_dist
+                ):
+                    match_dire = False
+                if (
+                    i_dire[0] in [4]
+                    and i_cid > j_cid
+                    and i_iot[0] < j_iot[0] + cam_dist
+                ):
+                    match_dire = False
                 ## 3-30
                 ## 4-1
-                if i_dire[0] in [3] and i_cid > j_cid:
-                    if i_iot[1] > j_iot[0] - cam_dist:
-                        match_dire = False
-                if i_dire[0] in [4] and i_cid < j_cid:
-                    if i_iot[1] > j_iot[0] - cam_dist:
-                        match_dire = False
+                if (
+                    i_dire[0] in [3]
+                    and i_cid > j_cid
+                    and i_iot[1] > j_iot[0] - cam_dist
+                ):
+                    match_dire = False
+                if (
+                    i_dire[0] in [4]
+                    and i_cid < j_cid
+                    and i_iot[1] > j_iot[0] - cam_dist
+                ):
+                    match_dire = False
                 # filter before going next scene
                 ## 4-7
-                if i_dire[1] in [3] and i_cid > j_cid:
-                    if i_iot[0] < j_iot[1] + cam_dist:
-                        match_dire = False
-                if i_dire[1] in [4] and i_cid < j_cid:
-                    if i_iot[0] < j_iot[1] + cam_dist:
-                        match_dire = False
+                if (
+                    i_dire[1] in [3]
+                    and i_cid > j_cid
+                    and i_iot[0] < j_iot[1] + cam_dist
+                ):
+                    match_dire = False
+                if (
+                    i_dire[1] in [4]
+                    and i_cid < j_cid
+                    and i_iot[0] < j_iot[1] + cam_dist
+                ):
+                    match_dire = False
             else:
                 if i_iot[1] > 199:
-                    if i_dire[0] in [3] and i_cid < j_cid:
-                        if i_iot[0] < j_iot[0] + cam_dist:
-                            match_dire = False
-                    if i_dire[0] in [4] and i_cid > j_cid:
-                        if i_iot[0] < j_iot[0] + cam_dist:
-                            match_dire = False
+                    if (
+                        i_dire[0] in [3]
+                        and i_cid < j_cid
+                        and i_iot[0] < j_iot[0] + cam_dist
+                    ):
+                        match_dire = False
+                    if (
+                        i_dire[0] in [4]
+                        and i_cid > j_cid
+                        and i_iot[0] < j_iot[0] + cam_dist
+                    ):
+                        match_dire = False
                     if i_dire[0] in [3] and i_cid > j_cid:
                         match_dire = False
                     if i_dire[0] in [4] and i_cid < j_cid:
@@ -152,29 +179,29 @@ def st_filter(st_mask, cid_tids, cid_tid_dict):
 
 
 def subcam_list(cid_tid_dict, cid_tids):
-    sub_3_4 = dict()
-    sub_4_3 = dict()
+    sub_3_4 = {}
+    sub_4_3 = {}
     for cid_tid in cid_tids:
         cid, tid = cid_tid
         tracklet = cid_tid_dict[cid_tid]
         zs, ze = get_dire(tracklet['zone_list'], cid)
         if zs in [3] and cid not in [46]:  # 4 to 3
-            if not cid + 1 in sub_4_3:
+            if cid + 1 not in sub_4_3:
                 sub_4_3[cid + 1] = []
             sub_4_3[cid + 1].append(cid_tid)
         if ze in [4] and cid not in [41]:  # 4 to 3
-            if not cid in sub_4_3:
+            if cid not in sub_4_3:
                 sub_4_3[cid] = []
             sub_4_3[cid].append(cid_tid)
         if zs in [4] and cid not in [41]:  # 3 to 4
-            if not cid - 1 in sub_3_4:
+            if cid - 1 not in sub_3_4:
                 sub_3_4[cid - 1] = []
             sub_3_4[cid - 1].append(cid_tid)
         if ze in [3] and cid not in [46]:  # 3 to 4
-            if not cid in sub_3_4:
+            if cid not in sub_3_4:
                 sub_3_4[cid] = []
             sub_3_4[cid].append(cid_tid)
-    sub_cid_tids = dict()
+    sub_cid_tids = {}
     for i in sub_3_4:
         sub_cid_tids[(i, i + 1)] = sub_3_4[i]
     for i in sub_4_3:
@@ -183,15 +210,15 @@ def subcam_list(cid_tid_dict, cid_tids):
 
 
 def subcam_list2(cid_tid_dict, cid_tids):
-    sub_dict = dict()
+    sub_dict = {}
     for cid_tid in cid_tids:
         cid, tid = cid_tid
         if cid not in [41]:
-            if not cid in sub_dict:
+            if cid not in sub_dict:
                 sub_dict[cid] = []
             sub_dict[cid].append(cid_tid)
         if cid not in [46]:
-            if not cid + 1 in sub_dict:
+            if cid + 1 not in sub_dict:
                 sub_dict[cid + 1] = []
             sub_dict[cid + 1].append(cid_tid)
     return sub_dict
@@ -238,7 +265,7 @@ def get_labels_with_camera(cid_tid_dict,
                            use_st_filter=False):
     # 1st cluster
     sub_cid_tids = subcam_list(cid_tid_dict, cid_tids)
-    sub_labels = dict()
+    sub_labels = {}
     dis_thrs = [0.7, 0.5, 0.5, 0.5, 0.5, 0.7, 0.5, 0.5, 0.5, 0.5]
 
     for i, sub_c_to_c in enumerate(sub_cid_tids):
@@ -261,8 +288,8 @@ def get_labels_with_camera(cid_tid_dict,
     # 2nd cluster
     cid_tid_dict_new = combin_feature(cid_tid_dict, sub_cluster)
     sub_cid_tids = subcam_list2(cid_tid_dict_new, cid_tids)
-    sub_labels = dict()
-    for i, sub_c_to_c in enumerate(sub_cid_tids):
+    sub_labels = {}
+    for sub_c_to_c in sub_cid_tids:
         sim_matrix = get_sim_matrix(
             cid_tid_dict_new,
             sub_cid_tids[sub_c_to_c],

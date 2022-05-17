@@ -122,7 +122,7 @@ def _is_valid_file(f, extensions=('.jpg', '.jpeg', '.png', '.bmp')):
 def _make_dataset(dir):
     dir = os.path.expanduser(dir)
     if not os.path.isdir(dir):
-        raise ('{} should be a dir'.format(dir))
+        raise f'{dir} should be a dir'
     images = []
     for root, _, fnames in sorted(os.walk(dir, followlinks=True)):
         for fname in sorted(fnames):
@@ -185,15 +185,14 @@ class ImageFolder(DetDataset):
         ct = 0
         records = []
         for image in images:
-            assert image != '' and os.path.isfile(image), \
-                    "Image {} not found".format(image)
+            assert image != '' and os.path.isfile(image), f"Image {image} not found"
             if self.sample_num > 0 and ct >= self.sample_num:
                 break
             rec = {'im_id': np.array([ct]), 'im_file': image}
             self._imid2path[ct] = image
             ct += 1
             records.append(rec)
-        assert len(records) > 0, "No image file found"
+        assert records, "No image file found"
         return records
 
     def get_imid2path(self):

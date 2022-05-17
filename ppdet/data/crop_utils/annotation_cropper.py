@@ -199,8 +199,7 @@ class AnnoCropper(object):
         candidate_num = int(sample_num * 1.5)
         candidate_neg_chips = sorted(self._cur_im_neg_chips, key=lambda x: -x[1])[:candidate_num]
         random.shuffle(candidate_neg_chips)
-        sampled_neg_chips = candidate_neg_chips[:sample_num]
-        return sampled_neg_chips
+        return candidate_neg_chips[:sample_num]
 
     def _trans_neg_chips2annotations(self, im_file: str, sampled_neg_chips: List[Tuple]):
         chip_records = []
@@ -256,7 +255,7 @@ class AnnoCropper(object):
         else:
             h_steps = max(1, int(math.floor((height - chip_overlap) / stride)))
 
-        chips = list()
+        chips = []
         for j in range(h_steps):
             for i in range(w_steps):
                 x1 = i * stride
@@ -271,8 +270,7 @@ class AnnoCropper(object):
                 raise ValueError(item)
         chips = np.array(chips, dtype=np.float)
 
-        raw_size_chips = chips / scale
-        return raw_size_chips
+        return chips / scale
 
     def _get_valid_boxes_and_pos_chips(self, gt_bbox, chips):
         valid_ratio_range = self._cur_valid_ratio_range
@@ -280,9 +278,7 @@ class AnnoCropper(object):
         scale = self._cur_scale
         #   Nx4            N
         valid_boxes, valid_boxes_idx = self._validate_boxes(valid_ratio_range, im_size, gt_bbox, scale)
-        # dict: chipid->[box_id, ...]
-        pos_chip2boxes_idx = self._find_pos_chips(chips, valid_boxes, valid_boxes_idx)
-        return pos_chip2boxes_idx
+        return self._find_pos_chips(chips, valid_boxes, valid_boxes_idx)
 
     def _validate_boxes(self, valid_ratio_range: List[float],
                         im_size: int,
@@ -298,7 +294,7 @@ class AnnoCropper(object):
         mins = np.minimum(ws, hs)
         target_mins = mins * scale
 
-        low = valid_ratio_range[0] if valid_ratio_range[0] > 0 else 0
+        low = max(valid_ratio_range[0], 0)
         high = valid_ratio_range[1] if valid_ratio_range[1] > 0 else np.finfo(np.float).max
 
         valid_boxes_idx = np.nonzero((low <= box_ratio) & (box_ratio < high) & (target_mins >= 2))[0]
@@ -316,9 +312,9 @@ class AnnoCropper(object):
         pos_chip_ids = set(pos_chip_ids)
 
         iob_threshold_to_assign_box = 0.5
-        pos_chip2boxes_idx = self._assign_boxes_to_pos_chips(
-            iob, iob_threshold_to_assign_box, pos_chip_ids, valid_boxes_idx)
-        return pos_chip2boxes_idx
+        return self._assign_boxes_to_pos_chips(
+            iob, iob_threshold_to_assign_box, pos_chip_ids, valid_boxes_idx
+        )
 
     def _find_chips_to_cover_overlaped_boxes(self, iob, overlap_threshold):
         return find_chips_to_cover_overlaped_boxes(iob, overlap_threshold)
@@ -353,8 +349,7 @@ class AnnoCropper(object):
 
         valid_props, _ = self._validate_boxes(valid_ratio_range, im_size, proposals, scale)
         neg_boxes = self._find_neg_boxes(chips, pos_chip_ids, valid_props)
-        neg_chip2box_num = self._find_neg_chips(chips, pos_chip_ids, neg_boxes)
-        return neg_chip2box_num
+        return self._find_neg_chips(chips, pos_chip_ids, neg_boxes)
 
     def _find_neg_boxes(self, chips: 'Cx4', pos_chip_ids: 'D', valid_props: 'Px4'):
         """
@@ -367,8 +362,7 @@ class AnnoCropper(object):
         iob = intersection_over_box(pos_chips, valid_props)
         overlap_per_prop = np.max(iob, axis=0)
         non_overlap_props_idx = overlap_per_prop < 0.5
-        neg_boxes = valid_props[non_overlap_props_idx]
-        return neg_boxes
+        return valid_props[non_overlap_props_idx]
 
     def _find_neg_chips(self, chips: 'Cx4', pos_chip_ids: 'D', neg_boxes: 'Nx4'):
         """
@@ -425,19 +419,20 @@ class AnnoCropper(object):
         ori_im_w = rec["w"]
         im_file = rec["im_file"]
         ori_im_id = rec["im_id"]
-        for id, chip in enumerate(chips):
-            chip_rec = {}
+        for chip in chips:
             x1, y1, x2, y2 = chip
             chip_h = y2 - y1
             chip_w = x2 - x1
-            chip_rec["im_file"] = im_file
-            chip_rec["im_id"] = self._global_chip_id
-            chip_rec["h"] = chip_h
-            chip_rec["w"] = chip_w
-            chip_rec["chip"] = chip
-            chip_rec["ori_im_h"] = ori_im_h
-            chip_rec["ori_im_w"] = ori_im_w
-            chip_rec["scale_i"] = scale_i
+            chip_rec = {
+                "im_file": im_file,
+                "im_id": self._global_chip_id,
+                "h": chip_h,
+                "w": chip_w,
+                "chip": chip,
+                "ori_im_h": ori_im_h,
+                "ori_im_w": ori_im_w,
+                "scale_i": scale_i,
+            }
 
             self._global_chip_id2img_id[self._global_chip_id] = int(ori_im_id)
             self._global_chip_id += 1
@@ -455,11 +450,10 @@ class AnnoCropper(object):
         :return:
         """
         results = deepcopy(results)
-        records = records if records else self.chip_records
+        records = records or self.chip_records
         img_id2bbox = self._transform_chip2image_bboxes(results, records)
         nms_img_id2bbox = self._nms_dets(img_id2bbox)
-        aggregate_results = self._reformat_results(nms_img_id2bbox)
-        return aggregate_results
+        return self._reformat_results(nms_img_id2bbox)
 
     def _transform_chip2image_bboxes(self, results, records):
         # 1. Transform chip dets to image dets;
@@ -510,10 +504,9 @@ class AnnoCropper(object):
             box = img_id2bbox[img_id]  # list of np.array of shape [N, 6], 6 is [label, score, x1, y1, x2, y2]
             box = np.concatenate(box, axis=0)
             nms_dets = nms(box, nms_thresh)
-            if max_per_img > 0:
-                if len(nms_dets) > max_per_img:
-                    keep = np.argsort(-nms_dets[:, 1])[:max_per_img]
-                    nms_dets = nms_dets[keep]
+            if max_per_img > 0 and len(nms_dets) > max_per_img:
+                keep = np.argsort(-nms_dets[:, 1])[:max_per_img]
+                nms_dets = nms_dets[keep]
 
             img_id2bbox[img_id] = nms_dets
 

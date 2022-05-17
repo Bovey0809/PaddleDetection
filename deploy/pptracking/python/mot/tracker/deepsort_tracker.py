@@ -130,8 +130,7 @@ class DeepSORTTracker(object):
             track.features = []
         self.metric.partial_fit(
             np.asarray(features), np.asarray(targets), active_targets)
-        output_stracks = self.tracks
-        return output_stracks
+        return self.tracks
 
     def _match(self, detections):
         def gated_metric(tracks, dets, track_indices, detection_indices):

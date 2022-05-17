@@ -171,30 +171,30 @@ class PipeTimer(Times):
         total_time = self.total_time.value()
         total_time = round(total_time, 4)
         average_latency = total_time / max(1, self.img_num)
-        qps = 0
-        if total_time > 0:
-            qps = 1 / average_latency
+        qps = 1 / average_latency if total_time > 0 else 0
         return total_time, average_latency, qps
 
     def info(self):
         total_time, average_latency, qps = self.get_total_time()
         print("------------------ Inference Time Info ----------------------")
-        print("total_time(ms): {}, img_num: {}".format(total_time * 1000,
-                                                       self.img_num))
+        print(f"total_time(ms): {total_time * 1000}, img_num: {self.img_num}")
 
         for k, v in self.module_time.items():
             v_time = round(v.value(), 4)
             if v_time > 0:
-                print("{} time(ms): {}".format(k, v_time * 1000))
+                print(f"{k} time(ms): {v_time * 1000}")
 
         print("average latency time(ms): {:.2f}, QPS: {:2f}".format(
             average_latency * 1000, qps))
         return qps
 
     def report(self, average=False):
-        dic = {}
-        dic['total'] = round(self.total_time.value() / max(1, self.img_num),
-                             4) if average else self.total_time.value()
+        dic = {
+            'total': round(self.total_time.value() / max(1, self.img_num), 4)
+            if average
+            else self.total_time.value()
+        }
+
         dic['det'] = round(self.module_time['det'].value() /
                            max(1, self.img_num),
                            4) if average else self.module_time['det'].value()
@@ -224,8 +224,10 @@ def merge_model_dir(args, model_dir):
         md = md.strip()
         k, v = md.split('=', 1)
         k_upper = k.upper()
-        assert k_upper in task_set, 'Illegal type of task, expect task are: {}, but received {}'.format(
-            task_set, k)
+        assert (
+            k_upper in task_set
+        ), f'Illegal type of task, expect task are: {task_set}, but received {k}'
+
         args[k_upper].update({'model_dir': v})
     return args
 
@@ -239,9 +241,8 @@ def merge_cfg(args):
         for k, v in cfg.items():
             if k in arg:
                 merge_cfg[k] = arg[k]
-            else:
-                if isinstance(v, dict):
-                    merge_cfg[k] = merge(v, arg)
+            elif isinstance(v, dict):
+                merge_cfg[k] = merge(v, arg)
         return merge_cfg
 
     args_dict = vars(args)
@@ -264,10 +265,14 @@ def get_test_images(infer_dir, infer_img):
     """
     assert infer_img is not None or infer_dir is not None, \
         "--infer_img or --infer_dir should be set"
-    assert infer_img is None or os.path.isfile(infer_img), \
-            "{} is not a file".format(infer_img)
-    assert infer_dir is None or os.path.isdir(infer_dir), \
-            "{} is not a directory".format(infer_dir)
+    assert infer_img is None or os.path.isfile(
+        infer_img
+    ), f"{infer_img} is not a file"
+
+    assert infer_dir is None or os.path.isdir(
+        infer_dir
+    ), f"{infer_dir} is not a directory"
+
 
     # infer_img has a higher priority
     if infer_img and os.path.isfile(infer_img):
@@ -275,16 +280,15 @@ def get_test_images(infer_dir, infer_img):
 
     images = set()
     infer_dir = os.path.abspath(infer_dir)
-    assert os.path.isdir(infer_dir), \
-        "infer_dir {} is not a directory".format(infer_dir)
+    assert os.path.isdir(infer_dir), f"infer_dir {infer_dir} is not a directory"
     exts = ['jpg', 'jpeg', 'png', 'bmp']
     exts += [ext.upper() for ext in exts]
     for ext in exts:
-        images.update(glob.glob('{}/*.{}'.format(infer_dir, ext)))
+        images.update(glob.glob(f'{infer_dir}/*.{ext}'))
     images = list(images)
 
-    assert len(images) > 0, "no image found in {}".format(infer_dir)
-    print("Found {} inference images in total.".format(len(images)))
+    assert images, f"no image found in {infer_dir}"
+    print(f"Found {len(images)} inference images in total.")
 
     return images
 
@@ -358,13 +362,14 @@ def refine_keypoint_coordinary(kpts, bbox, coord_size):
     tl = np.expand_dims(np.transpose(tl, (1, 0)), (2, 3))
     wh = np.expand_dims(np.transpose(wh, (1, 0)), (2, 3))
     target_w, target_h = coord_size
-    res = (kpts - tl) / wh * np.expand_dims(
-        np.array([[target_w], [target_h]]), (2, 3))
-    return res
+    return (
+        (kpts - tl)
+        / wh
+        * np.expand_dims(np.array([[target_w], [target_h]]), (2, 3))
+    )
 
 
 def parse_mot_keypoint(input, coord_size):
-    parsed_skeleton_with_mot = {}
     ids = []
     skeleton = []
     for tracker_id, kpt_seq in input:
@@ -374,6 +379,4 @@ def parse_mot_keypoint(input, coord_size):
                               -1)  #T, K, C -> C, T, K, 1
         bbox = np.array(kpt_seq.bboxes, dtype=np.float32)
         skeleton.append(refine_keypoint_coordinary(kpts, bbox, coord_size))
-    parsed_skeleton_with_mot["mot_id"] = ids
-    parsed_skeleton_with_mot["skeleton"] = skeleton
-    return parsed_skeleton_with_mot
+    return {"mot_id": ids, "skeleton": skeleton}

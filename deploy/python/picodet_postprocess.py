@@ -109,25 +109,23 @@ class PicoDetPostProcess(object):
         """Apply transform to boxes
         """
         width, height = ori_shape[1], ori_shape[0]
-        n = len(boxes)
-        if n:
-            # warp points
-            xy = np.ones((n * 4, 3))
-            xy[:, :2] = boxes[:, [0, 1, 2, 3, 0, 3, 2, 1]].reshape(
-                n * 4, 2)  # x1y1, x2y2, x1y2, x2y1
-            # xy = xy @ M.T  # transform
-            xy = (xy[:, :2] / xy[:, 2:3]).reshape(n, 8)  # rescale
-            # create new boxes
-            x = xy[:, [0, 2, 4, 6]]
-            y = xy[:, [1, 3, 5, 7]]
-            xy = np.concatenate(
-                (x.min(1), y.min(1), x.max(1), y.max(1))).reshape(4, n).T
-            # clip boxes
-            xy[:, [0, 2]] = xy[:, [0, 2]].clip(0, width)
-            xy[:, [1, 3]] = xy[:, [1, 3]].clip(0, height)
-            return xy.astype(np.float32)
-        else:
+        if not (n := len(boxes)):
             return boxes
+        # warp points
+        xy = np.ones((n * 4, 3))
+        xy[:, :2] = boxes[:, [0, 1, 2, 3, 0, 3, 2, 1]].reshape(
+            n * 4, 2)  # x1y1, x2y2, x1y2, x2y1
+        # xy = xy @ M.T  # transform
+        xy = (xy[:, :2] / xy[:, 2:3]).reshape(n, 8)  # rescale
+        # create new boxes
+        x = xy[:, [0, 2, 4, 6]]
+        y = xy[:, [1, 3, 5, 7]]
+        xy = np.concatenate(
+            (x.min(1), y.min(1), x.max(1), y.max(1))).reshape(4, n).T
+        # clip boxes
+        xy[:, [0, 2]] = xy[:, [0, 2]].clip(0, width)
+        xy[:, [1, 3]] = xy[:, [1, 3]].clip(0, height)
+        return xy.astype(np.float32)
 
     def __call__(self, scores, raw_boxes):
         batch_size = raw_boxes[0].shape[0]
@@ -178,7 +176,7 @@ class PicoDetPostProcess(object):
             confidences = np.concatenate(select_scores, axis=0)
             picked_box_probs = []
             picked_labels = []
-            for class_index in range(0, confidences.shape[1]):
+            for class_index in range(confidences.shape[1]):
                 probs = confidences[:, class_index]
                 mask = probs > self.score_threshold
                 probs = probs[mask]
@@ -194,7 +192,7 @@ class PicoDetPostProcess(object):
                 picked_box_probs.append(box_probs)
                 picked_labels.extend([class_index] * box_probs.shape[0])
 
-            if len(picked_box_probs) == 0:
+            if not picked_box_probs:
                 out_boxes_list.append(np.empty((0, 4)))
                 out_boxes_num.append(0)
 

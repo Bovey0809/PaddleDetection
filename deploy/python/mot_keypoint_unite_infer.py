@@ -44,14 +44,16 @@ from pptracking.python.mot.utils import MOTTimer as FPSTimer
 
 
 def convert_mot_to_det(tlwhs, scores):
-    results = {}
     num_mot = len(tlwhs)
     xyxys = copy.deepcopy(tlwhs)
     for xyxy in xyxys.copy():
         xyxy[2:] = xyxy[2:] + xyxy[:2]
-    # support single class now
-    results['boxes'] = np.vstack(
-        [np.hstack([0, scores[i], xyxys[i]]) for i in range(num_mot)])
+    results = {
+        'boxes': np.vstack(
+            [np.hstack([0, scores[i], xyxys[i]]) for i in range(num_mot)]
+        )
+    }
+
     results['boxes_num'] = np.array([num_mot])
     return results
 
@@ -210,7 +212,7 @@ def mot_topdown_unite_predict_video(mot_detector,
                 break
 
     writer.release()
-    print('output_video saved to: {}'.format(out_path))
+    print(f'output_video saved to: {out_path}')
 
 
 def main():

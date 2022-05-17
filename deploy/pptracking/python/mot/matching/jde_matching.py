@@ -46,8 +46,8 @@ def merge_matches(m1, m2, shape):
     mask = M1 * M2
     match = mask.nonzero()
     match = list(zip(match[0], match[1]))
-    unmatched_O = tuple(set(range(O)) - set([i for i, j in match]))
-    unmatched_Q = tuple(set(range(Q)) - set([j for i, j in match]))
+    unmatched_O = tuple(set(range(O)) - {i for i, j in match})
+    unmatched_Q = tuple(set(range(Q)) - {j for i, j in match})
 
     return match, unmatched_O, unmatched_Q
 
@@ -59,9 +59,7 @@ def linear_assignment(cost_matrix, thresh):
                 range(cost_matrix.shape[1]))
     matches, unmatched_a, unmatched_b = [], [], []
     cost, x, y = lap.lapjv(cost_matrix, extend_cost=True, cost_limit=thresh)
-    for ix, mx in enumerate(x):
-        if mx >= 0:
-            matches.append([ix, mx])
+    matches.extend([ix, mx] for ix, mx in enumerate(x) if mx >= 0)
     unmatched_a = np.where(x < 0)[0]
     unmatched_b = np.where(y < 0)[0]
     matches = np.asarray(matches)
@@ -105,9 +103,7 @@ def iou_distance(atracks, btracks):
         atlbrs = [track.tlbr for track in atracks]
         btlbrs = [track.tlbr for track in btracks]
     _ious = bbox_ious(atlbrs, btlbrs)
-    cost_matrix = 1 - _ious
-
-    return cost_matrix
+    return 1 - _ious
 
 
 def embedding_distance(tracks, detections, metric='euclidean'):

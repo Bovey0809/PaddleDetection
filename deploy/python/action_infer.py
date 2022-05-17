@@ -92,16 +92,15 @@ class ActionRecognizer(Detector):
         '''
         # model prediction
         output_names = self.predictor.get_output_names()
-        for i in range(repeats):
+        for _ in range(repeats):
             self.predictor.run()
             output_tensor = self.predictor.get_output_handle(output_names[0])
             np_output = output_tensor.copy_to_cpu()
-        result = dict(output=np_output)
-        return result
+        return dict(output=np_output)
 
     def predict_skeleton(self, skeleton_list, run_benchmark=False, repeats=1):
         results = []
-        for i, skeleton in enumerate(skeleton_list):
+        for skeleton in skeleton_list:
             if run_benchmark:
                 # preprocess
                 inputs = self.preprocess(skeleton)  # warmup
@@ -155,8 +154,7 @@ class ActionRecognizer(Detector):
         skeleton_list = skeleton_with_mot["skeleton"]
         mot_id = skeleton_with_mot["mot_id"]
         act_res = self.predict_skeleton(skeleton_list, run_benchmark, repeats=1)
-        results = list(zip(mot_id, act_res))
-        return results
+        return list(zip(mot_id, act_res))
 
     def preprocess(self, data):
         preprocess_ops = []
@@ -165,13 +163,10 @@ class ActionRecognizer(Detector):
             op_type = new_op_info.pop('type')
             preprocess_ops.append(eval(op_type)(**new_op_info))
 
-        input_lst = []
         data = action_preprocess(data, preprocess_ops)
-        input_lst.append(data)
+        input_lst = [data]
         input_names = self.predictor.get_input_names()
-        inputs = {}
-        inputs['data_batch_0'] = np.stack(input_lst, axis=0).astype('float32')
-
+        inputs = {'data_batch_0': np.stack(input_lst, axis=0).astype('float32')}
         for i in range(len(input_names)):
             input_tensor = self.predictor.get_input_handle(input_names[i])
             input_tensor.copy_from_cpu(inputs[input_names[i]])
@@ -254,10 +249,13 @@ def get_test_skeletons(input_file):
     if input_data.ndim == 4:
         return [input_data]
     elif input_data.ndim == 5:
-        output = list(
-            map(lambda x: np.squeeze(x, 0),
-                np.split(input_data, input_data.shape[0], 0)))
-        return output
+        return list(
+            map(
+                lambda x: np.squeeze(x, 0),
+                np.split(input_data, input_data.shape[0], 0),
+            )
+        )
+
     else:
         raise ValueError(
             "Now only support input with shape: (N, C, T, K, M) or (C, T, K, M)")

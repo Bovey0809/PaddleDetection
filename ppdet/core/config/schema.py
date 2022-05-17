@@ -108,7 +108,7 @@ class SchemaDict(dict):
         ]
 
     def mandatory(self):
-        return any([k for k in self.schema.keys() if not self.has_default(k)])
+        return any(k for k in self.schema.keys() if not self.has_default(k))
 
     def find_missing_keys(self):
         missing = [
@@ -126,25 +126,27 @@ class SchemaDict(dict):
         for arg in self.schema.values():
             if arg.type is not None:
                 try:
-                    check_type("{}.{}".format(self.name, arg.name),
-                               self[arg.name], arg.type)
+                    check_type(f"{self.name}.{arg.name}", self[arg.name], arg.type)
                 except Exception:
                     mismatch_keys.append(arg.name)
         return mismatch_keys
 
     def validate(self):
-        missing_keys = self.find_missing_keys()
-        if missing_keys:
-            raise ValueError("Missing param for class<{}>: {}".format(
-                self.name, ", ".join(missing_keys)))
+        if missing_keys := self.find_missing_keys():
+            raise ValueError(
+                f'Missing param for class<{self.name}>: {", ".join(missing_keys)}'
+            )
+
         extra_keys = self.find_extra_keys()
         if extra_keys and self.strict:
-            raise ValueError("Extraneous param for class<{}>: {}".format(
-                self.name, ", ".join(extra_keys)))
-        mismatch_keys = self.find_mismatch_keys()
-        if mismatch_keys:
-            raise TypeError("Wrong param type for class<{}>: {}".format(
-                self.name, ", ".join(mismatch_keys)))
+            raise ValueError(
+                f'Extraneous param for class<{self.name}>: {", ".join(extra_keys)}'
+            )
+
+        if mismatch_keys := self.find_mismatch_keys():
+            raise TypeError(
+                f'Wrong param type for class<{self.name}>: {", ".join(mismatch_keys)}'
+            )
 
 
 class SharedConfig(object):
@@ -183,15 +185,13 @@ def extract_schema(cls):
     if hasattr(inspect, 'getfullargspec'):
         argspec = inspect.getfullargspec(ctor)
         annotations = argspec.annotations
-        has_kwargs = argspec.varkw is not None
     else:
         argspec = inspect.getfullargspec(ctor)
         # python 2 type hinting workaround, see pep-3107
         # however, since `typeguard` does not support python 2, type checking
         # is still python 3 only for now
         annotations = getattr(ctor, '__annotations__', {})
-        has_kwargs = argspec.varkw is not None
-
+    has_kwargs = argspec.varkw is not None
     names = [arg for arg in argspec.args if arg != 'self']
     defaults = argspec.defaults
     num_defaults = argspec.defaults is not None and len(argspec.defaults) or 0
@@ -205,23 +205,21 @@ def extract_schema(cls):
     except Exception:
         docstring = None
 
-    if docstring is None:
-        comments = {}
-    else:
-        comments = {}
+    comments = {}
+    if docstring is not None:
         for p in docstring.params:
             match_obj = re.match('^([a-zA-Z_]+[a-zA-Z_0-9]*).*', p.arg_name)
             if match_obj is not None:
-                comments[match_obj.group(1)] = p.description
+                comments[match_obj[1]] = p.description
 
     schema = SchemaDict()
     schema.name = cls.__name__
     schema.doc = ""
     if docs is not None:
-        start_pos = docs[0] == '\n' and 1 or 0
+        start_pos = 1 if docs[0] == '\n' else 0
         schema.doc = docs[start_pos:].split("\n")[0].strip()
     # XXX handle paddle's weird doc convention
-    if '**' == schema.doc[:2] and '**' == schema.doc[-2:]:
+    if schema.doc[:2] == '**' and schema.doc[-2:] == '**':
         schema.doc = schema.doc[2:-2].strip()
     schema.category = hasattr(cls, '__category__') and getattr(
         cls, '__category__') or 'module'

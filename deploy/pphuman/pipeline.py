@@ -403,11 +403,7 @@ class PipePredictor(object):
                                        cpu_threads, enable_mkldnn)
 
     def set_file_name(self, path):
-        if path is not None:
-            self.file_name = os.path.split(path)[-1]
-        else:
-            # use camera id
-            self.file_name = None
+        self.file_name = os.path.split(path)[-1] if path is not None else None
 
     def get_result(self):
         return self.collector.get_res()
