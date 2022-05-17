@@ -38,7 +38,7 @@ def git_commit():
     except:
         git_commit = 'Unknown'
 
-    return str(git_commit)
+    return git_commit
 
 
 def write_version_py(filename='ppdet/version.py'):
@@ -75,11 +75,12 @@ def package_model_zoo():
     cfg_dir = osp.join(cur_dir, "configs")
     cfgs = glob.glob(osp.join(cfg_dir, '*/*.yml'))
 
-    valid_cfgs = []
-    for cfg in cfgs:
-        # exclude dataset base config
-        if osp.split(osp.split(cfg)[0])[1] not in ['datasets']:
-            valid_cfgs.append(cfg)
+    valid_cfgs = [
+        cfg
+        for cfg in cfgs
+        if osp.split(osp.split(cfg)[0])[1] not in ['datasets']
+    ]
+
     model_names = [
         osp.relpath(cfg, cfg_dir).replace(".yml", "") for cfg in valid_cfgs
     ]

@@ -56,12 +56,12 @@ def bdd2mot_tracking(img_dir, label_dir, save_img_dir, save_label_dir):
                         attr_id_dict[category], identity, x_center, y_center,
                         width, height)
 
-                fn_label = os.path.join(save_label_dir, img_name[:-4] + '.txt')
+                fn_label = os.path.join(save_label_dir, f'{img_name[:-4]}.txt')
                 source_img = os.path.join(img_dir, video_name, img_name)
                 target_img = os.path.join(save_img_dir, img_name)
                 with open(fn_label, 'w') as f:
                     f.write(txt_string)
-                os.system('cp {} {}'.format(source_img, target_img))
+                os.system(f'cp {source_img} {target_img}')
 
 
 def transBbox(bbox):
@@ -77,7 +77,7 @@ def transBbox(bbox):
 
 
 def genSingleImageMot(inputPath, classes=[]):
-    labelPaths = glob.glob(inputPath + '/*.txt')
+    labelPaths = glob.glob(f'{inputPath}/*.txt')
     labelPaths = sorted(labelPaths)
     allLines = []
     result = {}
@@ -88,11 +88,11 @@ def genSingleImageMot(inputPath, classes=[]):
             for line in lines:
                 line = line.replace('\n', '')
                 lineArray = line.split(' ')
-                if len(classes) > 0:
-                    if lineArray[0] in classes:
-                        lineArray.append(frame)
-                        allLines.append(lineArray)
-                else:
+                if (
+                    len(classes) > 0
+                    and lineArray[0] in classes
+                    or len(classes) <= 0
+                ):
                     lineArray.append(frame)
                     allLines.append(lineArray)
     resultMap = {}
@@ -101,28 +101,21 @@ def genSingleImageMot(inputPath, classes=[]):
             resultMap[line[1]] = []
         resultMap[line[1]].append(line)
     mot_gt = []
-    id_idx = 0
-    for rid in resultMap.keys():
-        id_idx += 1
-        for id_line in resultMap[rid]:
-            mot_line = []
-            mot_line.append(id_line[-1])
-            mot_line.append(str(id_idx))
+    for id_idx, value in enumerate(resultMap.values(), start=1):
+        for id_line in value:
+            mot_line = [id_line[-1], str(id_idx)]
             id_line_temp = transBbox(id_line[2:6])
             mot_line.extend(id_line_temp)
-            mot_line.append('1') # origin class: id_line[0]
-            mot_line.append('1')  # permanent class  => 1
-            mot_line.append('1')
+            mot_line.extend(('1', '1', '1'))
             mot_gt.append(mot_line)
 
     result = list(map(lambda line: str.join(',', line), mot_gt))
-    resultStr = str.join('\n', result)
-    return resultStr
+    return str.join('\n', result)
 
 
 def writeGt(inputPath, outPath, classes=[]):
     singleImageResult = genSingleImageMot(inputPath, classes=classes)
-    outPathFile = outPath + '/gt.txt'
+    outPathFile = f'{outPath}/gt.txt'
     mkdir_if_missing(outPath)
     with open(outPathFile, 'w') as gtFile:
         gtFile.write(singleImageResult)
@@ -130,8 +123,8 @@ def writeGt(inputPath, outPath, classes=[]):
 
 def genSeqInfo(seqInfoPath):
     name = seqInfoPath.split('/')[-2]
-    img1Path = osp.join(str.join('/', seqInfoPath.split('/')[0:-1]), 'img1')
-    seqLength = len(glob.glob(img1Path + '/*.jpg'))
+    img1Path = osp.join(str.join('/', seqInfoPath.split('/')[:-1]), 'img1')
+    seqLength = len(glob.glob(f'{img1Path}/*.jpg'))
     seqInfoStr = f'''[Sequence]\nname={name}\nimDir=img1\nframeRate=30\nseqLength={seqLength}\nimWidth=1280\nimHeight=720\nimExt=.jpg'''
     with open(seqInfoPath, 'w') as seqFile:
         seqFile.write(seqInfoStr)
@@ -153,17 +146,17 @@ def genMotGt(dataDir, classes=[]):
 
 def updateSeqInfo(dataDir, phase):
     seqPath = osp.join(dataDir, 'labels_with_ids', phase)
-    seqList = glob.glob(seqPath + '/*')
+    seqList = glob.glob(f'{seqPath}/*')
     for seqName in seqList:
         print('seqName=>', seqName)
         seqName_img1_dir = osp.join(seqName, 'img1')
-        txtLength = glob.glob(seqName_img1_dir + '/*.txt')
+        txtLength = glob.glob(f'{seqName_img1_dir}/*.txt')
         name = seqName.split('/')[-1].replace('.jpg', '').replace('.txt', '')
         seqLength = len(txtLength)
         seqInfoStr = f'''[Sequence]\nname={name}\nimDir=img1\nframeRate=30\nseqLength={seqLength}\nimWidth=1280\nimHeight=720\nimExt=.jpg'''
         seqInfoPath = seqName_img1_dir.replace('labels_with_ids', 'images')
         seqInfoPath = seqInfoPath.replace('/img1', '')
-        seqInfoPath = seqInfoPath + '/seqinfo.ini'
+        seqInfoPath = f'{seqInfoPath}/seqinfo.ini'
         with open(seqInfoPath, 'w') as seqFile:
             seqFile.write(seqInfoStr)
 
@@ -172,13 +165,15 @@ def VisualDataset(datasetPath, phase='train', seqName='', frameId=1):
     trainPath = osp.join(datasetPath, 'labels_with_ids', phase)
     seq1Paths = osp.join(trainPath, seqName)
     seq_img1_path = osp.join(seq1Paths, 'img1')
-    label_with_idPath = osp.join(seq_img1_path, seqName + '-' + '%07d' %
-                                 frameId) + '.txt'
+    label_with_idPath = (
+        osp.join(seq_img1_path, (f'{seqName}-' + '%07d' % frameId)) + '.txt'
+    )
+
     image_path = label_with_idPath.replace('labels_with_ids', 'images').replace(
         '.txt', '.jpg')
 
     seqInfoPath = str.join('/', image_path.split('/')[:-2])
-    seqInfoPath = seqInfoPath + '/seqinfo.ini'
+    seqInfoPath = f'{seqInfoPath}/seqinfo.ini'
     seq_info = open(seqInfoPath).read()
     width = int(seq_info[seq_info.find('imWidth=') + 8:seq_info.find(
         '\nimHeight')])
@@ -244,7 +239,7 @@ def VisualGt(dataPath, phase='train'):
 
 def gen_image_list(dataPath, datType):
     inputPath = f'{dataPath}/labels_with_ids/{datType}'
-    pathList = sorted(glob.glob(inputPath + '/*'))
+    pathList = sorted(glob.glob(f'{inputPath}/*'))
     print(pathList)
     allImageList = []
     for pathSingle in pathList:
@@ -261,10 +256,10 @@ def gen_image_list(dataPath, datType):
 def formatOrigin(datapath, phase):
     label_with_idPath = osp.join(datapath, 'labels_with_ids', phase)
     print(label_with_idPath)
-    for txtList in sorted(glob.glob(label_with_idPath + '/*.txt')):
+    for txtList in sorted(glob.glob(f'{label_with_idPath}/*.txt')):
         print(txtList)
         seqName = txtList.split('/')[-1]
-        seqName = str.join('-', seqName.split('-')[0:-1]).replace('.txt', '')
+        seqName = str.join('-', seqName.split('-')[:-1]).replace('.txt', '')
         seqPath = osp.join(label_with_idPath, seqName, 'img1')
         mkdir_if_missing(seqPath)
         os.system(f'mv {txtList} {seqPath}')
@@ -273,7 +268,7 @@ def formatOrigin(datapath, phase):
 def copyImg(fromRootPath, toRootPath, phase):
     fromPath = osp.join(fromRootPath, 'images', phase)
     toPathSeqPath = osp.join(toRootPath, 'labels_with_ids', phase)
-    seqList = sorted(glob.glob(toPathSeqPath + '/*'))
+    seqList = sorted(glob.glob(f'{toPathSeqPath}/*'))
     for seqPath in seqList:
         seqName = seqPath.split('/')[-1]
         imgTxtList = sorted(glob.glob(osp.join(seqPath, 'img1') + '/*.txt'))
@@ -302,52 +297,22 @@ if __name__ == "__main__":
     parser.add_argument("--width", default=1280)
     args = parser.parse_args()
 
-    attr_dict = dict()
-    attr_dict["categories"] = [{
-        "supercategory": "none",
-        "id": 0,
-        "name": "pedestrian"
-    }, {
-        "supercategory": "none",
-        "id": 1,
-        "name": "rider"
-    }, {
-        "supercategory": "none",
-        "id": 2,
-        "name": "car"
-    }, {
-        "supercategory": "none",
-        "id": 3,
-        "name": "truck"
-    }, {
-        "supercategory": "none",
-        "id": 4,
-        "name": "bus"
-    }, {
-        "supercategory": "none",
-        "id": 5,
-        "name": "train"
-    }, {
-        "supercategory": "none",
-        "id": 6,
-        "name": "motorcycle"
-    }, {
-        "supercategory": "none",
-        "id": 7,
-        "name": "bicycle"
-    }, {
-        "supercategory": "none",
-        "id": 8,
-        "name": "other person"
-    }, {
-        "supercategory": "none",
-        "id": 9,
-        "name": "trailer"
-    }, {
-        "supercategory": "none",
-        "id": 10,
-        "name": "other vehicle"
-    }]
+    attr_dict = {
+        "categories": [
+            {"supercategory": "none", "id": 0, "name": "pedestrian"},
+            {"supercategory": "none", "id": 1, "name": "rider"},
+            {"supercategory": "none", "id": 2, "name": "car"},
+            {"supercategory": "none", "id": 3, "name": "truck"},
+            {"supercategory": "none", "id": 4, "name": "bus"},
+            {"supercategory": "none", "id": 5, "name": "train"},
+            {"supercategory": "none", "id": 6, "name": "motorcycle"},
+            {"supercategory": "none", "id": 7, "name": "bicycle"},
+            {"supercategory": "none", "id": 8, "name": "other person"},
+            {"supercategory": "none", "id": 9, "name": "trailer"},
+            {"supercategory": "none", "id": 10, "name": "other vehicle"},
+        ]
+    }
+
     attr_id_dict = {i['name']: i['id'] for i in attr_dict['categories']}
 
     # create bdd100kmot_vehicle training set in MOT format
@@ -383,4 +348,4 @@ if __name__ == "__main__":
     copyImg(dataPath, osp.join(dataPath, 'bdd100kmot_vehicle'), phase)
     updateSeqInfo(osp.join(dataPath, 'bdd100kmot_vehicle'), phase)
     gen_image_list(osp.join(dataPath, 'bdd100kmot_vehicle'), phase)
-    os.system(f'rm -r {dataPath}/bdd100kmot_vehicle/images/' + phase + '/*.jpg')
+    os.system(f'rm -r {dataPath}/bdd100kmot_vehicle/images/{phase}/*.jpg')

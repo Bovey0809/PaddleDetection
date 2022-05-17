@@ -118,9 +118,7 @@ class PiecewiseDecay(object):
                  use_warmup=True):
         super(PiecewiseDecay, self).__init__()
         if type(gamma) is not list:
-            self.gamma = []
-            for i in range(len(milestones)):
-                self.gamma.append(gamma / 10**i)
+            self.gamma = [gamma / 10**i for i in range(len(milestones))]
         else:
             self.gamma = gamma
         self.milestones = milestones
@@ -276,10 +274,7 @@ class LearningRate(object):
         # TODO: split warmup & decay
         # warmup
         boundary, value = self.schedulers[1](self.base_lr, step_per_epoch)
-        # decay
-        decay_lr = self.schedulers[0](self.base_lr, boundary, value,
-                                      step_per_epoch)
-        return decay_lr
+        return self.schedulers[0](self.base_lr, boundary, value, step_per_epoch)
 
 
 @register
@@ -335,8 +330,9 @@ class OptimizerBuilder():
                 _params = {
                     n: p
                     for n, p in model.named_parameters()
-                    if any([k in n for k in group['params']])
+                    if any(k in n for k in group['params'])
                 }
+
                 _group = group.copy()
                 _group.update({'params': list(_params.values())})
 
@@ -387,7 +383,7 @@ class ModelEMA(object):
         self.step = 0
         self.epoch = 0
         self.decay = decay
-        self.state_dict = dict()
+        self.state_dict = {}
         for k, v in model.state_dict().items():
             self.state_dict[k] = paddle.zeros_like(v)
         self.ema_decay_type = ema_decay_type
@@ -423,8 +419,7 @@ class ModelEMA(object):
             model_dict = model.state_dict()
         else:
             model_dict = {k: p() for k, p in self._model_state.items()}
-            assert all(
-                [v is not None for _, v in model_dict.items()]), 'python gc.'
+            assert all(v is not None for _, v in model_dict.items()), 'python gc.'
 
         for k, v in self.state_dict.items():
             v = decay * v + (1 - decay) * model_dict[k]
@@ -435,7 +430,7 @@ class ModelEMA(object):
     def apply(self):
         if self.step == 0:
             return self.state_dict
-        state_dict = dict()
+        state_dict = {}
         for k, v in self.state_dict.items():
             if self.ema_decay_type != 'exponential':
                 v = v / (1 - self._decay**self.step)

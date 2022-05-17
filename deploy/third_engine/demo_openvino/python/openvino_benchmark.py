@@ -53,8 +53,17 @@ def draw_box(img, results, class_label, scale_x, scale_y):
             font = cv2.FONT_HERSHEY_SIMPLEX
             label_text = label_list[label_id]
             cv2.rectangle(img, (xmin, ymin), (xmax, ymin - 60), (0, 255, 0), -1)
-            cv2.putText(img, "#" + label_text, (xmin, ymin - 10), font, 1,
-                        (255, 255, 255), 2, cv2.LINE_AA)
+            cv2.putText(
+                img,
+                f"#{label_text}",
+                (xmin, ymin - 10),
+                font,
+                1,
+                (255, 255, 255),
+                2,
+                cv2.LINE_AA,
+            )
+
             cv2.putText(img,
                         str(round(score, 3)), (xmin, ymin - 40), font, 0.8,
                         (255, 255, 255), 2, cv2.LINE_AA)
@@ -154,25 +163,23 @@ class PicoDetPostProcess(object):
         """Apply transform to boxes
         """
         width, height = ori_shape[1], ori_shape[0]
-        n = len(boxes)
-        if n:
-            # warp points
-            xy = np.ones((n * 4, 3))
-            xy[:, :2] = boxes[:, [0, 1, 2, 3, 0, 3, 2, 1]].reshape(
-                n * 4, 2)  # x1y1, x2y2, x1y2, x2y1
-            # xy = xy @ M.T  # transform
-            xy = (xy[:, :2] / xy[:, 2:3]).reshape(n, 8)  # rescale
-            # create new boxes
-            x = xy[:, [0, 2, 4, 6]]
-            y = xy[:, [1, 3, 5, 7]]
-            xy = np.concatenate(
-                (x.min(1), y.min(1), x.max(1), y.max(1))).reshape(4, n).T
-            # clip boxes
-            xy[:, [0, 2]] = xy[:, [0, 2]].clip(0, width)
-            xy[:, [1, 3]] = xy[:, [1, 3]].clip(0, height)
-            return xy.astype(np.float32)
-        else:
+        if not (n := len(boxes)):
             return boxes
+        # warp points
+        xy = np.ones((n * 4, 3))
+        xy[:, :2] = boxes[:, [0, 1, 2, 3, 0, 3, 2, 1]].reshape(
+            n * 4, 2)  # x1y1, x2y2, x1y2, x2y1
+        # xy = xy @ M.T  # transform
+        xy = (xy[:, :2] / xy[:, 2:3]).reshape(n, 8)  # rescale
+        # create new boxes
+        x = xy[:, [0, 2, 4, 6]]
+        y = xy[:, [1, 3, 5, 7]]
+        xy = np.concatenate(
+            (x.min(1), y.min(1), x.max(1), y.max(1))).reshape(4, n).T
+        # clip boxes
+        xy[:, [0, 2]] = xy[:, [0, 2]].clip(0, width)
+        xy[:, [1, 3]] = xy[:, [1, 3]].clip(0, height)
+        return xy.astype(np.float32)
 
     def __call__(self, scores, raw_boxes):
         batch_size = raw_boxes[0].shape[0]
@@ -223,7 +230,7 @@ class PicoDetPostProcess(object):
             confidences = np.concatenate(select_scores, axis=0)
             picked_box_probs = []
             picked_labels = []
-            for class_index in range(0, confidences.shape[1]):
+            for class_index in range(confidences.shape[1]):
                 probs = confidences[:, class_index]
                 mask = probs > self.score_threshold
                 probs = probs[mask]
@@ -239,7 +246,7 @@ class PicoDetPostProcess(object):
                 picked_box_probs.append(box_probs)
                 picked_labels.extend([class_index] * box_probs.shape[0])
 
-            if len(picked_box_probs) == 0:
+            if not picked_box_probs:
                 out_boxes_list.append(np.empty((0, 4)))
                 out_boxes_num.append(0)
 
@@ -282,7 +289,7 @@ def detect(img_file, compiled_model, re_shape, class_label):
     np_score_list = []
     np_boxes_list = []
 
-    num_outs = int(len(result_ie) / 2)
+    num_outs = len(result_ie) // 2
     for out_idx in range(num_outs):
         np_score_list.append(result_ie[out_idx])
         np_boxes_list.append(result_ie[out_idx + num_outs])
@@ -326,9 +333,9 @@ def benchmark(test_image, compiled_model):
 
     time_avg = timeall / loop_num
 
-    print('inference_time(ms): min={}, max={}, avg={}'.format(
-        round(time_min * 1000, 2),
-        round(time_max * 1000, 1), round(time_avg * 1000, 1)))
+    print(
+        f'inference_time(ms): min={round(time_min * 1000, 2)}, max={round(time_max * 1000, 1)}, avg={round(time_avg * 1000, 1)}'
+    )
 
 
 if __name__ == '__main__':

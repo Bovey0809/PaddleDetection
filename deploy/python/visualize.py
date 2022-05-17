@@ -63,7 +63,7 @@ def get_color_map_list(num_classes):
         color_map (list): RGB color list
     """
     color_map = num_classes * [0, 0, 0]
-    for i in range(0, num_classes):
+    for i in range(num_classes):
         j = 0
         lab = i
         while lab:
@@ -139,9 +139,15 @@ def draw_box(im, np_boxes, labels, threshold=0.5):
 
         if len(bbox) == 4:
             xmin, ymin, xmax, ymax = bbox
-            print('class_id:{:d}, confidence:{:.4f}, left_top:[{:.2f},{:.2f}],'
-                  'right_bottom:[{:.2f},{:.2f}]'.format(
-                      int(clsid), score, xmin, ymin, xmax, ymax))
+            print(
+                (
+                    'class_id:{:d}, confidence:{:.4f}, left_top:[{:.2f},{:.2f}],'
+                    'right_bottom:[{:.2f},{:.2f}]'.format(
+                        clsid, score, xmin, ymin, xmax, ymax
+                    )
+                )
+            )
+
             # draw bbox
             draw.line(
                 [(xmin, ymin), (xmin, ymax), (xmax, ymax), (xmax, ymin),
@@ -221,8 +227,7 @@ def draw_segm(im,
 
 def get_color(idx):
     idx = idx * 3
-    color = ((37 * idx) % 255, (17 * idx) % 255, (29 * idx) % 255)
-    return color
+    return (37 * idx) % 255, (17 * idx) % 255, (29 * idx) % 255
 
 
 def visualize_pose(imgfile,
@@ -242,9 +247,7 @@ def visualize_pose(imgfile,
         raise e
     skeletons, scores = results['keypoint']
     skeletons = np.array(skeletons)
-    kpt_nums = 17
-    if len(skeletons) > 0:
-        kpt_nums = skeletons.shape[1]
+    kpt_nums = skeletons.shape[1] if len(skeletons) > 0 else 17
     if kpt_nums == 17:  #plot coco keypoint
         EDGES = [(0, 1), (0, 2), (1, 3), (2, 4), (3, 5), (4, 6), (5, 7), (6, 8),
                  (7, 9), (8, 10), (5, 11), (6, 12), (11, 13), (12, 14),
@@ -298,8 +301,8 @@ def visualize_pose(imgfile,
     stickwidth = 2
 
     for i in range(NUM_EDGES):
+        edge = EDGES[i]
         for j in range(len(skeletons)):
-            edge = EDGES[i]
             if skeletons[j][edge[0], 2] < visual_thresh or skeletons[j][edge[
                     1], 2] < visual_thresh:
                 continue
@@ -325,9 +328,11 @@ def visualize_pose(imgfile,
     if returnimg:
         return canvas
     save_name = os.path.join(
-        save_dir, os.path.splitext(os.path.basename(imgfile))[0] + '_vis.jpg')
+        save_dir, f'{os.path.splitext(os.path.basename(imgfile))[0]}_vis.jpg'
+    )
+
     plt.imsave(save_name, canvas[:, :, ::-1])
-    print("keypoint visualize image saved to: " + save_name)
+    print(f"keypoint visualize image saved to: {save_name}")
     plt.close()
 
 

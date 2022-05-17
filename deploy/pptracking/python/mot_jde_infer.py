@@ -170,7 +170,7 @@ class JDE_Detector(Detector):
         '''
         # model prediction
         np_pred_dets, np_pred_embs = None, None
-        for i in range(repeats):
+        for _ in range(repeats):
             self.predictor.run()
             output_names = self.predictor.get_output_names()
             boxes_tensor = self.predictor.get_output_handle(output_names[0])
@@ -178,8 +178,7 @@ class JDE_Detector(Detector):
             embs_tensor = self.predictor.get_output_handle(output_names[1])
             np_pred_embs = embs_tensor.copy_to_cpu()
 
-        result = dict(pred_dets=np_pred_dets, pred_embs=np_pred_embs)
-        return result
+        return dict(pred_dets=np_pred_dets, pred_embs=np_pred_embs)
 
     def predict_image(self,
                       image_list,
@@ -248,7 +247,7 @@ class JDE_Detector(Detector):
 
             if visual:
                 if len(image_list) > 1 and frame_id % 10 == 0:
-                    print('Tracking frame {}'.format(frame_id))
+                    print(f'Tracking frame {frame_id}')
                 frame, _ = decode_image(img_file, {})
 
                 im = plot_tracking_dict(
@@ -302,14 +301,14 @@ class JDE_Detector(Detector):
         entrance = None
         records = None
         if self.draw_center_traj:
-            center_traj = [{} for i in range(num_classes)]
+            center_traj = [{} for _ in range(num_classes)]
         if num_classes == 1:
             id_set = set()
             interval_id_set = set()
-            in_id_list = list()
-            out_id_list = list()
-            prev_center = dict()
-            records = list()
+            in_id_list = []
+            out_id_list = []
+            prev_center = {}
+            records = []
             entrance = [0, height / 2., width, height / 2.]
 
         video_fps = fps
@@ -375,12 +374,10 @@ class JDE_Detector(Detector):
                 result_filename = os.path.join(
                     self.output_dir,
                     video_out_name.split('.')[-2] + '_flow_statistic.txt')
-                f = open(result_filename, 'w')
-                for line in records:
-                    f.write(line)
-                print('Flow statistic save in {}'.format(result_filename))
-                f.close()
-
+                with open(result_filename, 'w') as f:
+                    for line in records:
+                        f.write(line)
+                    print(f'Flow statistic save in {result_filename}')
         writer.release()
 
 

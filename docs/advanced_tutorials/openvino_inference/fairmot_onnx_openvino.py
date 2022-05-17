@@ -21,8 +21,7 @@ def get_net():
     return net, exec_net
 
 def get_output_names(net):
-    output_names = [key for key in net.outputs]
-    return output_names
+    return list(net.outputs)
 
 def prepare_input():
     transforms = [
@@ -45,8 +44,7 @@ def prepare_input():
     return input, img
 
 def predict(exec_net, input):
-    result = exec_net.infer(input)
-    return result
+    return exec_net.infer(input)
 
 def postprocess(pred_dets, pred_embs, threshold = 0.5):
 
@@ -78,15 +76,9 @@ def postprocess(pred_dets, pred_embs, threshold = 0.5):
             online_ids[cls_id].append(tid)
             online_scores[cls_id].append(tscore)
 
-    online_im = plot_tracking_dict(
-        img,
-        1,
-        online_tlwhs,
-        online_ids,
-        online_scores,
-        frame_id=0)
-
-    return online_im
+    return plot_tracking_dict(
+        img, 1, online_tlwhs, online_ids, online_scores, frame_id=0
+    )
 
 # -------------------------------
 net, exec_net = get_net()

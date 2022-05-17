@@ -77,7 +77,7 @@ class JDETracker(object):
                  metric_type='euclidean'):
         self.use_byte = use_byte
         self.num_classes = num_classes
-        self.det_thresh = det_thresh if not use_byte else conf_thres + 0.1
+        self.det_thresh = conf_thres + 0.1 if use_byte else det_thresh
         self.track_buffer = track_buffer
         self.min_box_area = min_box_area
         self.vertical_ratio = vertical_ratio

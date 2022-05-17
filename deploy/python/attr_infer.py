@@ -105,36 +105,22 @@ class AttrDetector(Detector):
         batch_res = []
         for res in im_results:
             res = res.tolist()
-            label_res = []
             # gender 
             gender = 'Female' if res[22] > self.threshold else 'Male'
-            label_res.append(gender)
             # age
             age = age_list[np.argmax(res[19:22])]
-            label_res.append(age)
+            label_res = [gender, age]
             # direction 
             direction = direct_list[np.argmax(res[23:])]
             label_res.append(direction)
-            # glasses
-            glasses = 'Glasses: '
-            if res[1] > glasses_threshold:
-                glasses += 'True'
-            else:
-                glasses += 'False'
+            glasses = 'Glasses: ' + ('True' if res[1] > glasses_threshold else 'False')
             label_res.append(glasses)
-            # hat
-            hat = 'Hat: '
-            if res[0] > self.threshold:
-                hat += 'True'
-            else:
-                hat += 'False'
+            hat = 'Hat: ' + ('True' if res[0] > self.threshold else 'False')
             label_res.append(hat)
-            # hold obj
-            hold_obj = 'HoldObjectsInFront: '
-            if res[18] > hold_threshold:
-                hold_obj += 'True'
-            else:
-                hold_obj += 'False'
+            hold_obj = 'HoldObjectsInFront: ' + (
+                'True' if res[18] > hold_threshold else 'False'
+            )
+
             label_res.append(hold_obj)
             # bag
             bag = bag_list[np.argmax(res[15:18])]
@@ -145,10 +131,10 @@ class AttrDetector(Detector):
             upper_res = res[4:8]
             upper_label = 'Upper:'
             sleeve = 'LongSleeve' if res[3] > res[2] else 'ShortSleeve'
-            upper_label += ' {}'.format(sleeve)
+            upper_label += f' {sleeve}'
             for i, r in enumerate(upper_res):
                 if r > self.threshold:
-                    upper_label += ' {}'.format(upper_list[i])
+                    upper_label += f' {upper_list[i]}'
             label_res.append(upper_label)
             # lower
             lower_res = res[8:14]
@@ -156,10 +142,10 @@ class AttrDetector(Detector):
             has_lower = False
             for i, l in enumerate(lower_res):
                 if l > self.threshold:
-                    lower_label += ' {}'.format(lower_list[i])
+                    lower_label += f' {lower_list[i]}'
                     has_lower = True
             if not has_lower:
-                lower_label += ' {}'.format(lower_list[np.argmax(lower_res)])
+                lower_label += f' {lower_list[np.argmax(lower_res)]}'
 
             label_res.append(lower_label)
             # shoe
@@ -181,13 +167,12 @@ class AttrDetector(Detector):
                             shape: [N, im_h, im_w]
         '''
         # model prediction
-        for i in range(repeats):
+        for _ in range(repeats):
             self.predictor.run()
             output_names = self.predictor.get_output_names()
             output_tensor = self.predictor.get_output_handle(output_names[0])
             np_output = output_tensor.copy_to_cpu()
-        result = dict(output=np_output)
-        return result
+        return dict(output=np_output)
 
     def predict_image(self,
                       image_list,
@@ -247,7 +232,7 @@ class AttrDetector(Detector):
 
             results.append(result)
             if visual:
-                print('Test iter {}'.format(i))
+                print(f'Test iter {i}')
 
         results = self.merge_batch_result(results)
         return results
@@ -274,7 +259,7 @@ def visualize(image_list, batch_res, output_dir='output'):
         img_name = os.path.split(image_file)[-1]
         out_path = os.path.join(output_dir, img_name)
         cv2.imwrite(out_path, im)
-        print("save result to: " + out_path)
+        print(f"save result to: {out_path}")
 
 
 def main():

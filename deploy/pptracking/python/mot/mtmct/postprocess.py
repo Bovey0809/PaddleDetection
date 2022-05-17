@@ -57,13 +57,12 @@ def trajectory_fusion(mot_feature, cid, cid_bias, use_zone=False, zone_path=''):
 
     mot_list_break = gen_new_mot(mot_list)  # save break feature for gen result
 
-    tid_data = dict()
+    tid_data = {}
     for tid in mot_list:
         tracklet = mot_list[tid]
         if len(tracklet) <= 1:
             continue
-        frame_list = list(tracklet.keys())
-        frame_list.sort()
+        frame_list = sorted(tracklet.keys())
         # filter area too large
         zone_list = [tracklet[f]['zone'] for f in frame_list]
         feature_list = [
@@ -76,7 +75,7 @@ def trajectory_fusion(mot_feature, cid, cid_bias, use_zone=False, zone_path=''):
         io_time = [
             cur_bias + frame_list[0] / 10., cur_bias + frame_list[-1] / 10.
         ]
-        all_feat = np.array([feat for feat in feature_list])
+        all_feat = np.array(list(feature_list))
         mean_feat = np.mean(all_feat, axis=0)
         tid_data[tid] = {
             'cam': cid,
@@ -117,14 +116,14 @@ def sub_cluster(cid_tid_dict,
             use_ff=use_ff,
             use_rerank=use_rerank,
             use_st_filter=use_st_filter)
-    new_clu = list()
+    new_clu = []
     for c_list in clu:
         if len(c_list) <= 1: continue
         cam_list = [cid_tids[c][0] for c in c_list]
         if len(cam_list) != len(set(cam_list)): continue
         new_clu.append([cid_tids[c] for c in c_list])
     all_clu = new_clu
-    cid_tid_label = dict()
+    cid_tid_label = {}
     for i, c_list in enumerate(all_clu):
         for c in c_list:
             cid_tid_label[c] = i + 1
@@ -137,47 +136,53 @@ def gen_res(output_dir_filename,
             mot_list_breaks,
             use_roi=False,
             roi_dir=''):
-    f_w = open(output_dir_filename, 'w')
-    for idx, mot_feature in enumerate(mot_list_breaks):
-        cid = scene_cluster[idx]
-        img_rects = parse_pt_gt(mot_feature)
-        if use_roi:
-            assert (roi_dir != ''), "Error: roi_dir is not empty!"
-            roi = cv2.imread(os.path.join(roi_dir, f'c{cid:03d}/roi.jpg'), 0)
-            height, width = roi.shape
+    with open(output_dir_filename, 'w') as f_w:
+        for idx, mot_feature in enumerate(mot_list_breaks):
+            cid = scene_cluster[idx]
+            img_rects = parse_pt_gt(mot_feature)
+            if use_roi:
+                assert (roi_dir != ''), "Error: roi_dir is not empty!"
+                roi = cv2.imread(os.path.join(roi_dir, f'c{cid:03d}/roi.jpg'), 0)
+                height, width = roi.shape
 
-        for fid in img_rects:
-            tid_rects = img_rects[fid]
-            fid = int(fid) + 1
-            for tid_rect in tid_rects:
-                tid = tid_rect[0]
-                rect = tid_rect[1:]
-                cx = 0.5 * rect[0] + 0.5 * rect[2]
-                cy = 0.5 * rect[1] + 0.5 * rect[3]
-                w = rect[2] - rect[0]
-                w = min(w * 1.2, w + 40)
-                h = rect[3] - rect[1]
-                h = min(h * 1.2, h + 40)
-                rect[2] -= rect[0]
-                rect[3] -= rect[1]
-                rect[0] = max(0, rect[0])
-                rect[1] = max(0, rect[1])
-                x1, y1 = max(0, cx - 0.5 * w), max(0, cy - 0.5 * h)
-                if use_roi:
-                    x2, y2 = min(width, cx + 0.5 * w), min(height, cy + 0.5 * h)
-                else:
-                    x2, y2 = cx + 0.5 * w, cy + 0.5 * h
-                w, h = x2 - x1, y2 - y1
-                new_rect = list(map(int, [x1, y1, w, h]))
-                rect = list(map(int, rect))
-                if (cid, tid) in map_tid:
-                    new_tid = map_tid[(cid, tid)]
-                    f_w.write(
-                        str(cid) + ' ' + str(new_tid) + ' ' + str(fid) + ' ' +
-                        ' '.join(map(str, new_rect)) + ' -1 -1'
-                        '\n')
-    print('gen_res: write file in {}'.format(output_dir_filename))
-    f_w.close()
+            for fid in img_rects:
+                tid_rects = img_rects[fid]
+                fid = int(fid) + 1
+                for tid_rect in tid_rects:
+                    tid = tid_rect[0]
+                    rect = tid_rect[1:]
+                    cx = 0.5 * rect[0] + 0.5 * rect[2]
+                    cy = 0.5 * rect[1] + 0.5 * rect[3]
+                    w = rect[2] - rect[0]
+                    w = min(w * 1.2, w + 40)
+                    h = rect[3] - rect[1]
+                    h = min(h * 1.2, h + 40)
+                    rect[2] -= rect[0]
+                    rect[3] -= rect[1]
+                    rect[0] = max(0, rect[0])
+                    rect[1] = max(0, rect[1])
+                    x1, y1 = max(0, cx - 0.5 * w), max(0, cy - 0.5 * h)
+                    if use_roi:
+                        x2, y2 = min(width, cx + 0.5 * w), min(height, cy + 0.5 * h)
+                    else:
+                        x2, y2 = cx + 0.5 * w, cy + 0.5 * h
+                    w, h = x2 - x1, y2 - y1
+                    new_rect = list(map(int, [x1, y1, w, h]))
+                    rect = list(map(int, rect))
+                    if (cid, tid) in map_tid:
+                        new_tid = map_tid[(cid, tid)]
+                        f_w.write(
+                            (
+                                (
+                                    f'{str(cid)} {str(new_tid)} {str(fid)} '
+                                    + ' '.join(map(str, new_rect))
+                                )
+                                + ' -1 -1'
+                                '\n'
+                            )
+                        )
+
+        print(f'gen_res: write file in {output_dir_filename}')
 
 
 def print_mtmct_result(gt_file, pred_file):
@@ -217,7 +222,7 @@ def get_mtmct_matching_results(pred_mtmct_file, secs_interval=0.5,
     # each line in res: 'cid, tid, fid, x1, y1, w, h'
 
     camera_tids = []
-    camera_results = dict()
+    camera_results = {}
     for c_id in camera_ids:
         camera_results[c_id] = res[res[:, 0] == c_id]
         tids = np.unique(camera_results[c_id][:, 1])
@@ -233,15 +238,15 @@ def get_mtmct_matching_results(pred_mtmct_file, secs_interval=0.5,
         return None, None
 
     # get mtmct matching results by cid_tid_fid_results[c_id][t_id][f_id]
-    cid_tid_fid_results = dict()
-    cid_tid_to_fids = dict()
+    cid_tid_fid_results = {}
+    cid_tid_to_fids = {}
     interval = int(secs_interval * video_fps)  # preferably less than 10
     for c_id in camera_ids:
-        cid_tid_fid_results[c_id] = dict()
-        cid_tid_to_fids[c_id] = dict()
+        cid_tid_fid_results[c_id] = {}
+        cid_tid_to_fids[c_id] = {}
         for t_id in common_tids:
             tid_mask = camera_results[c_id][:, 1] == t_id
-            cid_tid_fid_results[c_id][t_id] = dict()
+            cid_tid_fid_results[c_id][t_id] = {}
 
             camera_trackid_results = camera_results[c_id][tid_mask]
             fids = np.unique(camera_trackid_results[:, 2])
@@ -269,10 +274,7 @@ def save_mtmct_crops(cid_tid_fid_res,
                      height=200):
     camera_ids = cid_tid_fid_res.keys()
     seqs_folder = os.listdir(images_dir)
-    seqs = []
-    for x in seqs_folder:
-        if os.path.isdir(os.path.join(images_dir, x)):
-            seqs.append(x)
+    seqs = [x for x in seqs_folder if os.path.isdir(os.path.join(images_dir, x))]
     assert len(seqs) == len(camera_ids)
     seqs.sort()
 
@@ -308,8 +310,7 @@ def save_mtmct_crops(cid_tid_fid_res,
                                  'tid{:06d}_cid{:06d}_fid{:06d}.jpg'.format(
                                      tid, cid, fid)), clip)
 
-            print("Finish cropping image of tracked_id {} in camera: {}".format(
-                t_id, c_id))
+            print(f"Finish cropping image of tracked_id {t_id} in camera: {c_id}")
 
 
 def save_mtmct_vis_results(camera_results,
@@ -319,10 +320,7 @@ def save_mtmct_vis_results(camera_results,
     # camera_results: 'cid, tid, fid, x1, y1, w, h'
     camera_ids = camera_results.keys()
     seqs_folder = os.listdir(images_dir)
-    seqs = []
-    for x in seqs_folder:
-        if os.path.isdir(os.path.join(images_dir, x)):
-            seqs.append(x)
+    seqs = [x for x in seqs_folder if os.path.isdir(os.path.join(images_dir, x))]
     assert len(seqs) == len(camera_ids)
     seqs.sort()
 
@@ -330,9 +328,8 @@ def save_mtmct_vis_results(camera_results,
         os.makedirs(save_dir)
 
     for i, c_id in enumerate(camera_ids):
-        print("Start visualization for camera {} of sequence {}.".format(
-            c_id, seqs[i]))
-        cid_save_dir = os.path.join(save_dir, '{}'.format(seqs[i]))
+        print(f"Start visualization for camera {c_id} of sequence {seqs[i]}.")
+        cid_save_dir = os.path.join(save_dir, f'{seqs[i]}')
         if not os.path.exists(cid_save_dir):
             os.makedirs(cid_save_dir)
 
@@ -352,20 +349,19 @@ def save_mtmct_vis_results(camera_results,
                     img, xywhs, tracked_ids, scores=None, frame_id=f_id)
             else:
                 online_im = img
-                print('Frame {} of seq {} has no tracking results'.format(
-                    f_id, seqs[i]))
+                print(f'Frame {f_id} of seq {seqs[i]} has no tracking results')
 
             cv2.imwrite(
                 os.path.join(cid_save_dir, '{:05d}.jpg'.format(f_id)),
                 online_im)
             if f_id % 40 == 0:
-                print('Processing frame {}'.format(f_id))
+                print(f'Processing frame {f_id}')
 
         if save_videos:
-            output_video_path = os.path.join(cid_save_dir, '..',
-                                             '{}_mtmct_vis.mp4'.format(seqs[i]))
-            cmd_str = 'ffmpeg -f image2 -i {}/%05d.jpg {}'.format(
-                cid_save_dir, output_video_path)
+            output_video_path = os.path.join(
+                cid_save_dir, '..', f'{seqs[i]}_mtmct_vis.mp4'
+            )
+
+            cmd_str = f'ffmpeg -f image2 -i {cid_save_dir}/%05d.jpg {output_video_path}'
             os.system(cmd_str)
-            print('Save camera {} video in {}.'.format(seqs[i],
-                                                       output_video_path))
+            print(f'Save camera {seqs[i]} video in {output_video_path}.')

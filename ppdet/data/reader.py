@@ -16,10 +16,6 @@ import os
 import traceback
 import six
 import sys
-if sys.version_info >= (3, 0):
-    pass
-else:
-    pass
 import numpy as np
 
 from paddle.io import DataLoader, DistributedBatchSampler
@@ -92,10 +88,8 @@ class BatchCompose(Compose):
         else:
             batch_data = {}
             for k in data[0].keys():
-                tmp_data = []
-                for i in range(len(data)):
-                    tmp_data.append(data[i][k])
-                if not 'gt_' in k and not 'is_crowd' in k and not 'difficult' in k:
+                tmp_data = [data[i][k] for i in range(len(data))]
+                if 'gt_' not in k and 'is_crowd' not in k and 'difficult' not in k:
                     tmp_data = np.stack(tmp_data, axis=0)
                 batch_data[k] = tmp_data
         return batch_data

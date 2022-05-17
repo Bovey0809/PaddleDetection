@@ -53,10 +53,7 @@ def rbox_iou(g, p):
         return 0
     inter = Polygon(g).intersection(Polygon(p)).area
     union = g.area + p.area - inter
-    if union == 0:
-        return 0
-    else:
-        return inter / union
+    return 0 if union == 0 else inter / union
 
 
 def py_cpu_nms_poly_fast(dets, thresh):
@@ -121,11 +118,10 @@ def py_cpu_nms_poly_fast(dets, thresh):
 
 def poly2origpoly(poly, x, y, rate):
     origpoly = []
-    for i in range(int(len(poly) / 2)):
+    for i in range(len(poly) // 2):
         tmp_x = float(poly[i * 2] + x) / float(rate)
         tmp_y = float(poly[i * 2 + 1] + y) / float(rate)
-        origpoly.append(tmp_x)
-        origpoly.append(tmp_y)
+        origpoly.extend((tmp_x, tmp_y))
     return origpoly
 
 
@@ -141,9 +137,7 @@ def nmsbynamedict(nameboxdict, nms, thresh):
     nameboxnmsdict = {x: [] for x in nameboxdict}
     for imgname in nameboxdict:
         keep = nms(np.array(nameboxdict[imgname]), thresh)
-        outdets = []
-        for index in keep:
-            outdets.append(nameboxdict[imgname][index])
+        outdets = [nameboxdict[imgname][index] for index in keep]
         nameboxnmsdict[imgname] = outdets
     return nameboxnmsdict
 
@@ -187,14 +181,16 @@ def merge_single(output_dir, nms, pred_class_lst):
     nameboxnmsdict = nmsbynamedict(nameboxdict, nms, nms_thresh)
 
     # write result
-    dstname = os.path.join(output_dir, class_name + '.txt')
+    dstname = os.path.join(output_dir, f'{class_name}.txt')
     with open(dstname, 'w') as f_out:
         for imgname in nameboxnmsdict:
             for det in nameboxnmsdict[imgname]:
                 confidence = det[-1]
-                bbox = det[0:-1]
-                outline = imgname + ' ' + str(confidence) + ' ' + ' '.join(
-                    map(str, bbox))
+                bbox = det[:-1]
+                outline = f'{imgname} {str(confidence)} ' + ' '.join(
+                    map(str, bbox)
+                )
+
                 f_out.write(outline + '\n')
 
 
@@ -206,14 +202,10 @@ def dota_generate_test_result(pred_txt_dir,
     output_dir: dir of output
     dota_version: dota_version v1.0 or v1.5 or v2.0
     """
-    pred_txt_list = glob.glob("{}/*.txt".format(pred_txt_dir))
+    pred_txt_list = glob.glob(f"{pred_txt_dir}/*.txt")
 
-    # step1: summary pred bbox
-    pred_classes = {}
     class_lst = class_name_15 if dota_version == 'v1.0' else class_name_16
-    for class_name in class_lst:
-        pred_classes[class_name] = []
-
+    pred_classes = {class_name: [] for class_name in class_lst}
     for current_txt in pred_txt_list:
         img_id = os.path.split(current_txt)[1]
         img_id = img_id.split('.txt')[0]
@@ -227,10 +219,9 @@ def dota_generate_test_result(pred_txt_dir,
                 pred_classes[pred_class].append(pred_bbox)
 
     pred_classes_lst = []
-    for class_name in pred_classes.keys():
-        print('class_name: {}, count: {}'.format(class_name,
-                                                 len(pred_classes[class_name])))
-        pred_classes_lst.append((class_name, pred_classes[class_name]))
+    for class_name, value in pred_classes.items():
+        print(f'class_name: {class_name}, count: {len(pred_classes[class_name])}')
+        pred_classes_lst.append((class_name, value))
 
     # step2: merge
     pool = Pool(len(class_lst))

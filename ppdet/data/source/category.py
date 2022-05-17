@@ -39,15 +39,13 @@ def get_categories(metric_type, anno_file=None, arch=None):
     if arch == 'keypoint_arch':
         return (None, {'id': 'keypoint'})
 
-    if anno_file == None or (not os.path.isfile(anno_file)):
+    if anno_file is None or not os.path.isfile(anno_file):
         logger.warning(
-            "anno_file '{}' is None or not set or not exist, "
-            "please recheck TrainDataset/EvalDataset/TestDataset.anno_path, "
-            "otherwise the default categories will be used by metric_type.".
-            format(anno_file))
+            f"anno_file '{anno_file}' is None or not set or not exist, please recheck TrainDataset/EvalDataset/TestDataset.anno_path, otherwise the default categories will be used by metric_type."
+        )
 
-    if metric_type.lower() == 'coco' or metric_type.lower(
-    ) == 'rbox' or metric_type.lower() == 'snipercoco':
+
+    if metric_type.lower() in ['coco', 'rbox', 'snipercoco']:
         if anno_file and os.path.isfile(anno_file):
             if anno_file.endswith('json'):
                 # lazy import pycocotools here
@@ -61,49 +59,38 @@ def get_categories(metric_type, anno_file=None, arch=None):
             elif anno_file.endswith('txt'):
                 cats = []
                 with open(anno_file) as f:
-                    for line in f.readlines():
-                        cats.append(line.strip())
+                    cats.extend(line.strip() for line in f.readlines())
                 if cats[0] == 'background': cats = cats[1:]
 
                 clsid2catid = {i: i for i in range(len(cats))}
-                catid2name = {i: name for i, name in enumerate(cats)}
+                catid2name = dict(enumerate(cats))
 
             else:
-                raise ValueError("anno_file {} should be json or txt.".format(
-                    anno_file))
+                raise ValueError(f"anno_file {anno_file} should be json or txt.")
             return clsid2catid, catid2name
 
-        # anno file not exist, load default categories of COCO17
         else:
             if metric_type.lower() == 'rbox':
-                logger.warning(
-                    "metric_type: {}, load default categories of DOTA.".format(
-                        metric_type))
+                logger.warning(f"metric_type: {metric_type}, load default categories of DOTA.")
                 return _dota_category()
-            logger.warning("metric_type: {}, load default categories of COCO.".
-                           format(metric_type))
+            logger.warning(f"metric_type: {metric_type}, load default categories of COCO.")
             return _coco17_category()
 
     elif metric_type.lower() == 'voc':
         if anno_file and os.path.isfile(anno_file):
             cats = []
             with open(anno_file) as f:
-                for line in f.readlines():
-                    cats.append(line.strip())
-
+                cats.extend(line.strip() for line in f.readlines())
             if cats[0] == 'background':
                 cats = cats[1:]
 
             clsid2catid = {i: i for i in range(len(cats))}
-            catid2name = {i: name for i, name in enumerate(cats)}
+            catid2name = dict(enumerate(cats))
 
             return clsid2catid, catid2name
 
-        # anno file not exist, load default categories of
-        # VOC all 20 categories
         else:
-            logger.warning("metric_type: {}, load default categories of VOC.".
-                           format(metric_type))
+            logger.warning(f"metric_type: {metric_type}, load default categories of VOC.")
             return _vocall_category()
 
     elif metric_type.lower() == 'oid':
@@ -114,26 +101,27 @@ def get_categories(metric_type, anno_file=None, arch=None):
     elif metric_type.lower() == 'widerface':
         return _widerface_category()
 
-    elif metric_type.lower() == 'keypointtopdowncocoeval' or metric_type.lower(
-    ) == 'keypointtopdownmpiieval':
+    elif metric_type.lower() in [
+        'keypointtopdowncocoeval',
+        'keypointtopdownmpiieval',
+    ]:
         return (None, {'id': 'keypoint'})
 
     elif metric_type.lower() in ['mot', 'motdet', 'reid']:
         if anno_file and os.path.isfile(anno_file):
             cats = []
             with open(anno_file) as f:
-                for line in f.readlines():
-                    cats.append(line.strip())
+                cats.extend(line.strip() for line in f.readlines())
             if cats[0] == 'background':
                 cats = cats[1:]
             clsid2catid = {i: i for i in range(len(cats))}
-            catid2name = {i: name for i, name in enumerate(cats)}
+            catid2name = dict(enumerate(cats))
             return clsid2catid, catid2name
-        # anno file not exist, load default category 'pedestrian'.
         else:
             logger.warning(
-                "metric_type: {}, load default categories of pedestrian MOT.".
-                format(metric_type))
+                f"metric_type: {metric_type}, load default categories of pedestrian MOT."
+            )
+
             return _mot_category(category='pedestrian')
 
     elif metric_type.lower() in ['kitti', 'bdd100kmot']:
@@ -143,22 +131,21 @@ def get_categories(metric_type, anno_file=None, arch=None):
         if anno_file and os.path.isfile(anno_file):
             cats = []
             with open(anno_file) as f:
-                for line in f.readlines():
-                    cats.append(line.strip())
+                cats.extend(line.strip() for line in f.readlines())
             if cats[0] == 'background':
                 cats = cats[1:]
             clsid2catid = {i: i for i in range(len(cats))}
-            catid2name = {i: name for i, name in enumerate(cats)}
+            catid2name = dict(enumerate(cats))
             return clsid2catid, catid2name
-        # anno file not exist, load default categories of visdrone all 10 categories
         else:
             logger.warning(
-                "metric_type: {}, load default categories of VisDrone.".format(
-                    metric_type))
+                f"metric_type: {metric_type}, load default categories of VisDrone."
+            )
+
             return _visdrone_category()
 
     else:
-        raise ValueError("unknown metric type {}".format(metric_type))
+        raise ValueError(f"unknown metric type {metric_type}")
 
 
 def _mot_category(category='pedestrian'):
@@ -171,7 +158,7 @@ def _mot_category(category='pedestrian'):
     cats = [l[0] for l in label_map]
 
     clsid2catid = {i: i for i in range(len(cats))}
-    catid2name = {i: name for i, name in enumerate(cats)}
+    catid2name = dict(enumerate(cats))
 
     return clsid2catid, catid2name
 
@@ -394,7 +381,7 @@ def _vocall_category():
     cats = [l[0] for l in label_map]
 
     clsid2catid = {i: i for i in range(len(cats))}
-    catid2name = {i: name for i, name in enumerate(cats)}
+    catid2name = dict(enumerate(cats))
 
     return clsid2catid, catid2name
 
@@ -404,7 +391,7 @@ def _widerface_category():
     label_map = sorted(label_map.items(), key=lambda x: x[1])
     cats = [l[0] for l in label_map]
     clsid2catid = {i: i for i in range(len(cats))}
-    catid2name = {i: name for i, name in enumerate(cats)}
+    catid2name = dict(enumerate(cats))
 
     return clsid2catid, catid2name
 

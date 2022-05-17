@@ -56,11 +56,8 @@ def dota_2_coco(image_dir,
     dota_version: dota_version v1.0 or v1.5 or v2.0
     """
 
-    img_lists = glob.glob("{}/*.png".format(image_dir))
-    data_dict = {}
-    data_dict['images'] = []
-    data_dict['categories'] = []
-    data_dict['annotations'] = []
+    img_lists = glob.glob(f"{image_dir}/*.png")
+    data_dict = {'images': [], 'categories': [], 'annotations': []}
     inst_count = 0
 
     # categories
@@ -76,10 +73,8 @@ def dota_2_coco(image_dir,
             data_dict['categories'].append(single_cat)
 
     for image_id, img_path in enumerate(img_lists):
-        single_image = {}
         basename = osp.basename(img_path)
-        single_image['file_name'] = basename
-        single_image['id'] = image_id
+        single_image = {'file_name': basename, 'id': image_id}
         img = cv2.imread(img_path)
         height, width, _ = img.shape
         single_image['width'] = width
@@ -88,9 +83,9 @@ def dota_2_coco(image_dir,
         data_dict['images'].append(single_image)
 
         # annotations
-        anno_txt_path = osp.join(txt_dir, osp.splitext(basename)[0] + '.txt')
+        anno_txt_path = osp.join(txt_dir, f'{osp.splitext(basename)[0]}.txt')
         if not osp.exists(anno_txt_path):
-            logger.warning('path of {} not exists'.format(anno_txt_path))
+            logger.warning(f'path of {anno_txt_path} not exists')
 
         for line in open(anno_txt_path):
             line = line.strip()
@@ -101,16 +96,16 @@ def dota_2_coco(image_dir,
             # x1,y1,x2,y2,x3,y3,x4,y4 class_name, is_different
             single_obj_anno = line.split(' ')
             assert len(single_obj_anno) == 10
-            single_obj_poly = [float(e) for e in single_obj_anno[0:8]]
+            single_obj_poly = [float(e) for e in single_obj_anno[:8]]
             single_obj_classname = single_obj_anno[8]
             single_obj_different = int(single_obj_anno[9])
 
-            single_obj = {}
+            single_obj = {
+                'category_id': class_name2id[single_obj_classname],
+                'segmentation': [single_obj_poly],
+                'iscrowd': 0,
+            }
 
-            single_obj['category_id'] = class_name2id[single_obj_classname]
-            single_obj['segmentation'] = []
-            single_obj['segmentation'].append(single_obj_poly)
-            single_obj['iscrowd'] = 0
 
             # rbox or bbox
             if is_obb:
@@ -120,8 +115,13 @@ def dota_2_coco(image_dir,
                 single_obj['bbox'] = rbox
                 single_obj['area'] = rbox[2] * rbox[3]
             else:
-                xmin, ymin, xmax, ymax = min(single_obj_poly[0::2]), min(single_obj_poly[1::2]), \
-                                     max(single_obj_poly[0::2]), max(single_obj_poly[1::2])
+                xmin, ymin, xmax, ymax = (
+                    min(single_obj_poly[::2]),
+                    min(single_obj_poly[1::2]),
+                    max(single_obj_poly[::2]),
+                    max(single_obj_poly[1::2]),
+                )
+
 
                 width, height = xmax - xmin, ymax - ymin
                 single_obj['bbox'] = xmin, ymin, width, height

@@ -36,7 +36,7 @@ if __name__ == "__main__":
     label_root = osp.join(MOT_data, 'bdd100kmot_vehicle', 'labels_with_ids',
                           phase)
     mkdirs(label_root)
-    seqs = [s for s in os.listdir(seq_root)]
+    seqs = list(os.listdir(seq_root))
     tid_curr = 0
     tid_last = -1
 
@@ -58,13 +58,12 @@ if __name__ == "__main__":
         for fid, tid, x, y, w, h, mark, label, _ in gt:
             fid = int(fid)
             tid = int(tid)
-            if not tid == tid_last:
+            if tid != tid_last:
                 tid_curr += 1
                 tid_last = tid
             x += w / 2
             y += h / 2
-            label_fpath = osp.join(seq_label_root,
-                                   seq + '-' + '{:07d}.txt'.format(fid))
+            label_fpath = osp.join(seq_label_root, f'{seq}-' + '{:07d}.txt'.format(fid))
             label_str = '0 {:d} {:.6f} {:.6f} {:.6f} {:.6f}\n'.format(
                 tid_curr, x / seq_width, y / seq_height, w / seq_width,
                 h / seq_height)

@@ -32,7 +32,7 @@ class KeyPointSequence(object):
 class KeyPointBuff(object):
     def __init__(self, max_size=100):
         self.flag_track_interrupt = False
-        self.keypoint_saver = dict()
+        self.keypoint_saver = {}
         self.max_size = max_size
         self.id_to_pop = set()
         self.flag_to_pop = False
@@ -86,8 +86,7 @@ class ActionVisualHelper(object):
         self.action_history = {}
 
     def get_visualize_ids(self):
-        id_detected = self.check_detected()
-        return id_detected
+        return self.check_detected()
 
     def check_detected(self):
         id_detected = set()

@@ -147,9 +147,7 @@ class ReID(object):
             img -= np.array(mean)
             img /= np.array(std)
             im_batch.append(img.transpose((2, 0, 1)))
-        inputs = {}
-        inputs['x'] = np.array(im_batch).astype('float32')
-        return inputs
+        return {'x': np.array(im_batch).astype('float32')}
 
     def predict(self, crops, repeats=1, add_timer=True, seq_name=''):
         # preprocess
@@ -166,7 +164,7 @@ class ReID(object):
             self.det_times.inference_time_s.start()
 
         # model prediction
-        for i in range(repeats):
+        for _ in range(repeats):
             self.predictor.run()
             output_names = self.predictor.get_output_names()
             feature_tensor = self.predictor.get_output_handle(output_names[0])

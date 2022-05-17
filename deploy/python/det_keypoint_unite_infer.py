@@ -47,10 +47,12 @@ def predict_with_given_det(image, det_res, keypoint_detector,
         rec_images, run_benchmark, repeats=10, visual=False)
     keypoint_vector, score_vector = translate_to_ori_images(keypoint_results,
                                                             np.array(records))
-    keypoint_res = {}
-    keypoint_res['keypoint'] = [
-        keypoint_vector.tolist(), score_vector.tolist()
-    ] if len(keypoint_vector) > 0 else [[], []]
+    keypoint_res = {
+        'keypoint': [keypoint_vector.tolist(), score_vector.tolist()]
+        if len(keypoint_vector) > 0
+        else [[], []]
+    }
+
     keypoint_res['bbox'] = rect_vector
     return keypoint_res
 
@@ -179,7 +181,7 @@ def topdown_unite_predict_video(detector,
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
     writer.release()
-    print('output_video saved to: {}'.format(out_path))
+    print(f'output_video saved to: {out_path}')
     if save_res:
         """
         1) store_res: a list of frame_data
@@ -197,10 +199,7 @@ def main():
     with open(deploy_file) as f:
         yml_conf = yaml.safe_load(f)
     arch = yml_conf['arch']
-    detector_func = 'Detector'
-    if arch == 'PicoDet':
-        detector_func = 'DetectorPicoDet'
-
+    detector_func = 'DetectorPicoDet' if arch == 'PicoDet' else 'Detector'
     detector = eval(detector_func)(FLAGS.det_model_dir,
                                    device=FLAGS.device,
                                    run_mode=FLAGS.run_mode,

@@ -94,7 +94,7 @@ class SDE_Detector(Detector):
         self.num_classes = len(self.pred_config.labels)
 
         # reid config
-        self.use_reid = False if reid_model_dir is None else True
+        self.use_reid = reid_model_dir is not None
         if self.use_reid:
             self.reid_pred_config = self.set_config(reid_model_dir)
             self.reid_predictor, self.config = load_predictor(
@@ -120,8 +120,8 @@ class SDE_Detector(Detector):
         cfg = tracker_cfg[tracker_cfg['type']]
 
         # tracker config
-        self.use_deepsort_tracker = True if tracker_cfg[
-            'type'] == 'DeepSORTTracker' else False
+        self.use_deepsort_tracker = tracker_cfg['type'] == 'DeepSORTTracker'
+
         if self.use_deepsort_tracker:
             # use DeepSORTTracker
             if self.reid_pred_config is not None and hasattr(
@@ -200,7 +200,7 @@ class SDE_Detector(Detector):
             input_tensor.copy_from_cpu(det_results[input_names[i]])
 
         # model prediction
-        for i in range(repeats):
+        for _ in range(repeats):
             self.reid_predictor.run()
             output_names = self.reid_predictor.get_output_names()
             feature_tensor = self.reid_predictor.get_output_handle(output_names[
@@ -232,12 +232,6 @@ class SDE_Detector(Detector):
                 online_scores.append(tscore)
                 online_ids.append(tid)
 
-            tracking_outs = {
-                'online_tlwhs': online_tlwhs,
-                'online_scores': online_scores,
-                'online_ids': online_ids,
-            }
-            return tracking_outs
         else:
             # use ByteTracker, support multiple class
             online_tlwhs = defaultdict(list)
@@ -259,12 +253,12 @@ class SDE_Detector(Detector):
                     online_ids[cls_id].append(tid)
                     online_scores[cls_id].append(tscore)
 
-            tracking_outs = {
-                'online_tlwhs': online_tlwhs,
-                'online_scores': online_scores,
-                'online_ids': online_ids,
-            }
-            return tracking_outs
+
+        return {
+            'online_tlwhs': online_tlwhs,
+            'online_scores': online_scores,
+            'online_ids': online_ids,
+        }
 
     def predict_image(self,
                       image_list,
@@ -349,7 +343,7 @@ class SDE_Detector(Detector):
 
             if visual:
                 if len(image_list) > 1 and frame_id % 10 == 0:
-                    print('Tracking frame {}'.format(frame_id))
+                    print(f'Tracking frame {frame_id}')
                 frame, _ = decode_image(img_file, {})
                 if isinstance(online_tlwhs, defaultdict):
                     im = plot_tracking_dict(

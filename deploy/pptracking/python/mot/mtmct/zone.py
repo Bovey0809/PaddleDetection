@@ -70,21 +70,12 @@ class Zone(object):
                 return 0
             if fe - fs > 1500:
                 return 2
-            if fs < 2:
-                if cid in [45]:
-                    if ze in [3, 4]:
-                        return 1
-                    else:
-                        return 2
-            if fe > 1999:
-                if cid in [41]:
-                    if ze not in [3]:
-                        return 2
-                    else:
-                        return 0
-            if fs < 2 or fe > 1999:
-                if ze in [3, 4]:
-                    return 0
+            if fs < 2 and cid in [45]:
+                return 1 if ze in [3, 4] else 2
+            if fe > 1999 and cid in [41]:
+                return 2 if ze not in [3] else 0
+            if (fs < 2 or fe > 1999) and ze in [3, 4]:
+                return 0
             if ze in [3, 4]:
                 return 1
             return 2
@@ -111,15 +102,12 @@ class Zone(object):
             return 0
 
     def filter_mot(self, mot_list, cid):
-        new_mot_list = dict()
-        sub_mot_list = dict()
+        new_mot_list = {}
+        sub_mot_list = {}
         for tracklet in mot_list:
             tracklet_dict = mot_list[tracklet]
-            frame_list = list(tracklet_dict.keys())
-            frame_list.sort()
-            zone_list = []
-            for f in frame_list:
-                zone_list.append(tracklet_dict[f]['zone'])
+            frame_list = sorted(tracklet_dict.keys())
+            zone_list = [tracklet_dict[f]['zone'] for f in frame_list]
             if self.is_ignore(zone_list, frame_list, cid) == 0:
                 new_mot_list[tracklet] = tracklet_dict
             if self.is_ignore(zone_list, frame_list, cid) == 1:
@@ -127,37 +115,37 @@ class Zone(object):
         return new_mot_list
 
     def filter_bbox(self, mot_list, cid):
-        new_mot_list = dict()
+        new_mot_list = {}
         yh = self.zones[cid].shape[0]
         for tracklet in mot_list:
             tracklet_dict = mot_list[tracklet]
-            frame_list = list(tracklet_dict.keys())
-            frame_list.sort()
-            bbox_list = []
-            for f in frame_list:
-                bbox_list.append(tracklet_dict[f]['bbox'])
+            frame_list = sorted(tracklet_dict.keys())
+            bbox_list = [tracklet_dict[f]['bbox'] for f in frame_list]
             bbox_x = [b[0] for b in bbox_list]
             bbox_y = [b[1] for b in bbox_list]
             bbox_w = [b[2] - b[0] for b in bbox_list]
             bbox_h = [b[3] - b[1] for b in bbox_list]
-            new_frame_list = list()
             if 0 in bbox_x or 0 in bbox_y:
                 b0 = [
                     i for i, f in enumerate(frame_list)
                     if bbox_x[i] < 5 or bbox_y[i] + bbox_h[i] > yh - 5
                 ]
+                new_frame_list = []
                 if len(b0) == len(frame_list):
                     if cid in [41, 42, 44, 45, 46]:
                         continue
                     max_w = max(bbox_w)
                     max_h = max(bbox_h)
-                    for i, f in enumerate(frame_list):
-                        if bbox_w[i] > max_w * BBOX_B and bbox_h[
-                                i] > max_h * BBOX_B:
-                            new_frame_list.append(f)
+                    new_frame_list.extend(
+                        f
+                        for i, f in enumerate(frame_list)
+                        if bbox_w[i] > max_w * BBOX_B
+                        and bbox_h[i] > max_h * BBOX_B
+                    )
+
                 else:
                     l_i, r_i = 0, len(frame_list) - 1
-                    if len(b0) == 0:
+                    if not b0:
                         continue
                     if b0[0] == 0:
                         for i in range(len(b0) - 1):
@@ -186,36 +174,32 @@ class Zone(object):
                                 new_frame_list.append(f)
                         else:
                             new_frame_list.append(f)
-                new_tracklet_dict = dict()
-                for f in new_frame_list:
-                    new_tracklet_dict[f] = tracklet_dict[f]
+                new_tracklet_dict = {f: tracklet_dict[f] for f in new_frame_list}
                 new_mot_list[tracklet] = new_tracklet_dict
             else:
                 new_mot_list[tracklet] = tracklet_dict
         return new_mot_list
 
     def break_mot(self, mot_list, cid):
-        new_mot_list = dict()
+        new_mot_list = {}
         new_num_tracklets = max(mot_list) + 1
         for tracklet in mot_list:
             tracklet_dict = mot_list[tracklet]
-            frame_list = list(tracklet_dict.keys())
-            frame_list.sort()
+            frame_list = sorted(tracklet_dict.keys())
             zone_list = []
             back_tracklet = False
             new_zone_f = 0
             pre_frame = frame_list[0]
             time_break = False
             for f in frame_list:
-                if f - pre_frame > 100:
-                    if cid in [44, 45]:
-                        time_break = True
-                        break
-                if not cid in [41, 44, 45, 46]:
+                if f - pre_frame > 100 and cid in [44, 45]:
+                    time_break = True
+                    break
+                if cid not in [41, 44, 45, 46]:
                     break
                 pre_frame = f
                 new_zone = tracklet_dict[f]['zone']
-                if len(zone_list) > 0 and zone_list[-1] == new_zone:
+                if zone_list and zone_list[-1] == new_zone:
                     continue
                 if new_zone_f > 1:
                     if len(zone_list) > 1 and new_zone in zone_list:
@@ -225,20 +209,19 @@ class Zone(object):
                 else:
                     new_zone_f += 1
             if back_tracklet:
-                new_tracklet_dict = dict()
+                new_tracklet_dict = {}
                 pre_bbox = -1
                 pre_arrow = 0
                 have_break = False
                 for f in frame_list:
                     now_bbox = tracklet_dict[f]['bbox']
-                    if type(pre_bbox) == int:
-                        if pre_bbox == -1:
-                            pre_bbox = now_bbox
+                    if type(pre_bbox) == int and pre_bbox == -1:
+                        pre_bbox = now_bbox
                     now_arrow = now_bbox[0] - pre_bbox[0]
                     if pre_arrow * now_arrow < 0 and len(
                             new_tracklet_dict) > 15 and not have_break:
                         new_mot_list[tracklet] = new_tracklet_dict
-                        new_tracklet_dict = dict()
+                        new_tracklet_dict = {}
                         have_break = True
                     if have_break:
                         tracklet_dict[f]['id'] = new_num_tracklets
@@ -251,13 +234,13 @@ class Zone(object):
                 else:
                     new_mot_list[tracklet] = new_tracklet_dict
             elif time_break:
-                new_tracklet_dict = dict()
+                new_tracklet_dict = {}
                 have_break = False
                 pre_frame = frame_list[0]
                 for f in frame_list:
                     if f - pre_frame > 100:
                         new_mot_list[tracklet] = new_tracklet_dict
-                        new_tracklet_dict = dict()
+                        new_tracklet_dict = {}
                         have_break = True
                     new_tracklet_dict[f] = tracklet_dict[f]
                     pre_frame = f
@@ -271,8 +254,8 @@ class Zone(object):
         return new_mot_list
 
     def intra_matching(self, mot_list, sub_mot_list):
-        sub_zone_dict = dict()
-        new_mot_list = dict()
+        sub_zone_dict = {}
+        new_mot_list = {}
         new_mot_list, new_sub_mot_list = self.do_intra_matching2(mot_list,
                                                                  sub_mot_list)
         return new_mot_list
@@ -281,8 +264,7 @@ class Zone(object):
         new_zone_dict = dict()
 
         def get_trac_info(tracklet1):
-            t1_f = list(tracklet1)
-            t1_f.sort()
+            t1_f = sorted(tracklet1)
             t1_fs = t1_f[0]
             t1_fe = t1_f[-1]
             t1_zs = tracklet1[t1_fs]['zone']
@@ -343,8 +325,7 @@ class Zone(object):
             id2index[id] = index
 
         def get_trac_info(tracklet1):
-            t1_f = list(tracklet1)
-            t1_f.sort()
+            t1_f = sorted(tracklet1)
             t1_fs = t1_f[0]
             t1_fe = t1_f[-1]
             t1_zs = tracklet1[t1_fs]['zone']

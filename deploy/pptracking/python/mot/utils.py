@@ -43,10 +43,7 @@ class MOTTimer(object):
     def toc(self, average=True):
         self.diff = time.time() - self.start_time
         self.deque.append(self.diff)
-        if average:
-            self.duration = np.mean(self.deque)
-        else:
-            self.duration = np.sum(self.deque)
+        self.duration = np.mean(self.deque) if average else np.sum(self.deque)
         return self.duration
 
     def clear(self):
@@ -127,15 +124,19 @@ def write_mot_results(filename, results, data_type='mot', num_classes=1):
                     score=score,
                     cls_id=cls_id)
                 f.write(line)
-    print('MOT results save in {}'.format(filename))
+    print(f'MOT results save in {filename}')
 
 
 def load_det_results(det_file, num_frames):
-    assert os.path.exists(det_file) and os.path.isfile(det_file), \
-        '{} is not exist or not a file.'.format(det_file)
+    assert os.path.exists(det_file) and os.path.isfile(
+        det_file
+    ), f'{det_file} is not exist or not a file.'
+
     labels = np.loadtxt(det_file, dtype='float32', delimiter=',')
-    assert labels.shape[1] == 7, \
-        "Each line of {} should have 7 items: '[frame_id],[x0],[y0],[w],[h],[score],[class_id]'.".format(det_file)
+    assert (
+        labels.shape[1] == 7
+    ), f"Each line of {det_file} should have 7 items: '[frame_id],[x0],[y0],[w],[h],[score],[class_id]'."
+
     results_list = []
     for frame_i in range(num_frames):
         results = {'bbox': [], 'score': [], 'cls_id': []}
@@ -182,7 +183,7 @@ def get_crops(xyxy, ori_img, w, h):
     crops = []
     xyxy = xyxy.astype(np.int64)
     ori_img = ori_img.transpose(1, 0, 2)  # [h,w,3]->[w,h,3]
-    for i, bbox in enumerate(xyxy):
+    for bbox in xyxy:
         crop = ori_img[bbox[0]:bbox[2], bbox[1]:bbox[3], :]
         crops.append(crop)
     crops = preprocess_reid(crops, w, h)
@@ -264,13 +265,11 @@ def flow_statistic(result,
     if frame_id % video_fps == 0 and frame_id / video_fps % secs_interval == 0:
         curr_interval_count = len(interval_id_set)
         interval_id_set.clear()
-    info = "Frame id: {}, Total count: {}".format(frame_id, len(id_set))
+    info = f"Frame id: {frame_id}, Total count: {len(id_set)}"
     if do_entrance_counting:
-        info += ", In count: {}, Out count: {}".format(
-            len(in_id_list), len(out_id_list))
+        info += f", In count: {len(in_id_list)}, Out count: {len(out_id_list)}"
     if frame_id % video_fps == 0 and frame_id / video_fps % secs_interval == 0:
-        info += ", Count during {} secs: {}".format(secs_interval,
-                                                    curr_interval_count)
+        info += f", Count during {secs_interval} secs: {curr_interval_count}"
         interval_id_set.clear()
     print(info)
     info += "\n"

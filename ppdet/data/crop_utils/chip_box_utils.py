@@ -39,8 +39,7 @@ def intersection_over_box(chips, boxes):
     inter_wh = np.clip(inter_wh, a_min=0, a_max=None)
     inter_area = inter_wh[:, :, 0] * inter_wh[:, :, 1]  # CxB
 
-    iob = inter_area / np.expand_dims(box_area, 0)
-    return iob
+    return inter_area / np.expand_dims(box_area, 0)
 
 
 def clip_boxes(boxes, im_shape):

@@ -111,7 +111,7 @@ class STrack(BaseTrack):
         self.mean, self.covariance = None, None
         self.is_activated = False
 
-        self.use_reid = True if temp_feat is not None else False
+        self.use_reid = temp_feat is not None
         if self.use_reid:
             self.smooth_feat = None
             self.update_features(temp_feat)
@@ -139,18 +139,19 @@ class STrack(BaseTrack):
 
     @staticmethod
     def multi_predict(tracks, kalman_filter):
-        if len(tracks) > 0:
-            multi_mean = np.asarray([track.mean.copy() for track in tracks])
-            multi_covariance = np.asarray(
-                [track.covariance for track in tracks])
-            for i, st in enumerate(tracks):
-                if st.state != TrackState.Tracked:
-                    multi_mean[i][7] = 0
-            multi_mean, multi_covariance = kalman_filter.multi_predict(
-                multi_mean, multi_covariance)
-            for i, (mean, cov) in enumerate(zip(multi_mean, multi_covariance)):
-                tracks[i].mean = mean
-                tracks[i].covariance = cov
+        if len(tracks) <= 0:
+            return
+        multi_mean = np.asarray([track.mean.copy() for track in tracks])
+        multi_covariance = np.asarray(
+            [track.covariance for track in tracks])
+        for i, st in enumerate(tracks):
+            if st.state != TrackState.Tracked:
+                multi_mean[i][7] = 0
+        multi_mean, multi_covariance = kalman_filter.multi_predict(
+            multi_mean, multi_covariance)
+        for i, (mean, cov) in enumerate(zip(multi_mean, multi_covariance)):
+            tracks[i].mean = mean
+            tracks[i].covariance = cov
 
     def reset_track_id(self):
         self.reset_track_count(self.cls_id)
@@ -246,8 +247,7 @@ class STrack(BaseTrack):
         return ret
 
     def __repr__(self):
-        return 'OT_({}-{})_({}-{})'.format(self.cls_id, self.track_id,
-                                           self.start_frame, self.end_frame)
+        return f'OT_({self.cls_id}-{self.track_id})_({self.start_frame}-{self.end_frame})'
 
 
 def joint_stracks(tlista, tlistb):
@@ -265,9 +265,7 @@ def joint_stracks(tlista, tlistb):
 
 
 def sub_stracks(tlista, tlistb):
-    stracks = {}
-    for t in tlista:
-        stracks[t.track_id] = t
+    stracks = {t.track_id: t for t in tlista}
     for t in tlistb:
         tid = t.track_id
         if stracks.get(tid, 0):
@@ -286,6 +284,6 @@ def remove_duplicate_stracks(stracksa, stracksb):
             dupb.append(q)
         else:
             dupa.append(p)
-    resa = [t for i, t in enumerate(stracksa) if not i in dupa]
-    resb = [t for i, t in enumerate(stracksb) if not i in dupb]
+    resa = [t for i, t in enumerate(stracksa) if i not in dupa]
+    resb = [t for i, t in enumerate(stracksb) if i not in dupb]
     return resa, resb

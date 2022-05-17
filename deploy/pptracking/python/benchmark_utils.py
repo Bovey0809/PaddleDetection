@@ -89,7 +89,7 @@ class PaddleInferBenchmark(object):
 
         self.preprocess_time_s = perf_info.get('preprocess_time_s', 0)
         self.postprocess_time_s = perf_info.get('postprocess_time_s', 0)
-        self.with_tracker = True if 'tracking_time_s' in perf_info else False
+        self.with_tracker = 'tracking_time_s' in perf_info
         self.tracking_time_s = perf_info.get('tracking_time_s', 0)
         self.total_time_s = perf_info.get('total_time_s', 0)
 
@@ -159,9 +159,10 @@ class PaddleInferBenchmark(object):
             config_status(dict): dict style config info
         """
         if isinstance(config, paddle_infer.Config):
-            config_status = {}
-            config_status['runtime_device'] = "gpu" if config.use_gpu(
-            ) else "cpu"
+            config_status = {
+                'runtime_device': "gpu" if config.use_gpu() else "cpu"
+            }
+
             config_status['ir_optim'] = config.ir_optim()
             config_status['enable_tensorrt'] = config.tensorrt_engine_enabled()
             config_status['precision'] = self.precision
@@ -190,11 +191,7 @@ class PaddleInferBenchmark(object):
         args:
             identifier(string): identify log
         """
-        if identifier:
-            identifier = f"[{identifier}]"
-        else:
-            identifier = ""
-
+        identifier = f"[{identifier}]" if identifier else ""
         self.logger.info("\n")
         self.logger.info(
             "---------------------- Paddle info ----------------------")
@@ -209,7 +206,7 @@ class PaddleInferBenchmark(object):
         )
         self.logger.info(
             f"{identifier} ir_optim: {self.config_status['ir_optim']}")
-        self.logger.info(f"{identifier} enable_memory_optim: {True}")
+        self.logger.info(f"{identifier} enable_memory_optim: True")
         self.logger.info(
             f"{identifier} enable_tensorrt: {self.config_status['enable_tensorrt']}"
         )

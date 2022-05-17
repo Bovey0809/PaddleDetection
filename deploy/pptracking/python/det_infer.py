@@ -160,15 +160,14 @@ class Detector(object):
         '''
         # model prediction
         np_boxes, np_boxes_num = None, None
-        for i in range(repeats):
+        for _ in range(repeats):
             self.predictor.run()
             output_names = self.predictor.get_output_names()
             boxes_tensor = self.predictor.get_output_handle(output_names[0])
             np_boxes = boxes_tensor.copy_to_cpu()
             boxes_num = self.predictor.get_output_handle(output_names[1])
             np_boxes_num = boxes_num.copy_to_cpu()
-        result = dict(boxes=np_boxes, boxes_num=np_boxes_num)
-        return result
+        return dict(boxes=np_boxes, boxes_num=np_boxes_num)
 
     def merge_batch_result(self, batch_result):
         if len(batch_result) == 1:
@@ -247,7 +246,7 @@ class Detector(object):
 
             results.append(result)
             if visual:
-                print('Test iter {}'.format(i))
+                print(f'Test iter {i}')
 
         results = self.merge_batch_result(results)
         return results
@@ -322,8 +321,8 @@ def create_inputs(imgs, im_info):
     inputs['scale_factor'] = np.concatenate(scale_factor, axis=0)
 
     imgs_shape = [[e.shape[1], e.shape[2]] for e in imgs]
-    max_shape_h = max([e[0] for e in imgs_shape])
-    max_shape_w = max([e[1] for e in imgs_shape])
+    max_shape_h = max(e[0] for e in imgs_shape)
+    max_shape_w = max(e[1] for e in imgs_shape)
     padding_imgs = []
     for img in imgs:
         im_c, im_h, im_w = img.shape[:]
@@ -377,10 +376,10 @@ class PredictConfig():
 
     def print_config(self):
         print('-----------  Model Configuration -----------')
-        print('%s: %s' % ('Model Arch', self.arch))
-        print('%s: ' % ('Transform Order'))
+        print(f'Model Arch: {self.arch}')
+        print('Transform Order: ')
         for op_info in self.preprocess_infos:
-            print('--%s: %s' % ('transform op', op_info['type']))
+            print(f"--transform op: {op_info['type']}")
         print('--------------------------------------------')
 
 
@@ -414,8 +413,9 @@ def load_predictor(model_dir,
     """
     if device != 'GPU' and run_mode != 'paddle':
         raise ValueError(
-            "Predict by TensorRT mode: {}, expect device=='GPU', but device == {}"
-            .format(run_mode, device))
+            f"Predict by TensorRT mode: {run_mode}, expect device=='GPU', but device == {device}"
+        )
+
     config = Config(
         os.path.join(model_dir, 'model.pdmodel'),
         os.path.join(model_dir, 'model.pdiparams'))
@@ -439,14 +439,12 @@ def load_predictor(model_dir,
                 print(
                     "The current environment does not support `mkldnn`, so disable mkldnn."
                 )
-                pass
-
     precision_map = {
         'trt_int8': Config.Precision.Int8,
         'trt_fp32': Config.Precision.Float32,
         'trt_fp16': Config.Precision.Half
     }
-    if run_mode in precision_map.keys():
+    if run_mode in precision_map:
         config.enable_tensorrt_engine(
             workspace_size=1 << 25,
             max_batch_size=batch_size,
@@ -485,10 +483,14 @@ def get_test_images(infer_dir, infer_img):
     """
     assert infer_img is not None or infer_dir is not None, \
         "--infer_img or --infer_dir should be set"
-    assert infer_img is None or os.path.isfile(infer_img), \
-            "{} is not a file".format(infer_img)
-    assert infer_dir is None or os.path.isdir(infer_dir), \
-            "{} is not a directory".format(infer_dir)
+    assert infer_img is None or os.path.isfile(
+        infer_img
+    ), f"{infer_img} is not a file"
+
+    assert infer_dir is None or os.path.isdir(
+        infer_dir
+    ), f"{infer_dir} is not a directory"
+
 
     # infer_img has a higher priority
     if infer_img and os.path.isfile(infer_img):
@@ -496,16 +498,15 @@ def get_test_images(infer_dir, infer_img):
 
     images = set()
     infer_dir = os.path.abspath(infer_dir)
-    assert os.path.isdir(infer_dir), \
-        "infer_dir {} is not a directory".format(infer_dir)
+    assert os.path.isdir(infer_dir), f"infer_dir {infer_dir} is not a directory"
     exts = ['jpg', 'jpeg', 'png', 'bmp']
     exts += [ext.upper() for ext in exts]
     for ext in exts:
-        images.update(glob.glob('{}/*.{}'.format(infer_dir, ext)))
+        images.update(glob.glob(f'{infer_dir}/*.{ext}'))
     images = list(images)
 
-    assert len(images) > 0, "no image found in {}".format(infer_dir)
-    print("Found {} inference images in total.".format(len(images)))
+    assert images, f"no image found in {infer_dir}"
+    print(f"Found {len(images)} inference images in total.")
 
     return images
 
@@ -527,13 +528,13 @@ def visualize(image_list, result, labels, output_dir='output/', threshold=0.5):
             os.makedirs(output_dir)
         out_path = os.path.join(output_dir, img_name)
         im.save(out_path, quality=95)
-        print("save result to: " + out_path)
+        print(f"save result to: {out_path}")
 
 
 def print_arguments(args):
     print('-----------  Running Arguments -----------')
     for arg, value in sorted(vars(args).items()):
-        print('%s: %s' % (arg, value))
+        print(f'{arg}: {value}')
     print('------------------------------------------')
 
 

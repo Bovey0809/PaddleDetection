@@ -158,7 +158,7 @@ class JDE_Detector(Detector):
         '''
         # model prediction
         np_pred_dets, np_pred_embs = None, None
-        for i in range(repeats):
+        for _ in range(repeats):
             self.predictor.run()
             output_names = self.predictor.get_output_names()
             boxes_tensor = self.predictor.get_output_handle(output_names[0])
@@ -166,8 +166,7 @@ class JDE_Detector(Detector):
             embs_tensor = self.predictor.get_output_handle(output_names[1])
             np_pred_embs = embs_tensor.copy_to_cpu()
 
-        result = dict(pred_dets=np_pred_dets, pred_embs=np_pred_embs)
-        return result
+        return dict(pred_dets=np_pred_dets, pred_embs=np_pred_embs)
 
     def predict_image(self,
                       image_list,
@@ -236,7 +235,7 @@ class JDE_Detector(Detector):
 
             if visual:
                 if len(image_list) > 1 and frame_id % 10 == 0:
-                    print('Tracking frame {}'.format(frame_id))
+                    print(f'Tracking frame {frame_id}')
                 frame, _ = decode_image(img_file, {})
 
                 im = plot_tracking_dict(

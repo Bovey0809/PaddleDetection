@@ -49,7 +49,7 @@ def dump_value(value):
         value = yaml.dump(value, default_flow_style=True)
         value = value.replace('\n', '')
         value = value.replace('...', '')
-        return "'{}'".format(value)
+        return f"'{value}'"
     else:
         # primitive types
         return str(value)
@@ -65,7 +65,7 @@ class AttrDict(dict):
     def __getattr__(self, key):
         if key in self:
             return self[key]
-        raise AttributeError("object has no attribute '{}'".format(key))
+        raise AttributeError(f"object has no attribute '{key}'")
 
 
 global_config = AttrDict()
@@ -190,8 +190,7 @@ def register(cls):
     Returns: cls
     """
     if cls.__name__ in global_config:
-        raise ValueError("Module class already registered: {}".format(
-            cls.__name__))
+        raise ValueError(f"Module class already registered: {cls.__name__}")
     if hasattr(cls, '__op__'):
         cls = make_partial(cls)
     global_config[cls.__name__] = extract_schema(cls)
@@ -210,22 +209,17 @@ def create(cls_or_name, **kwargs):
     assert type(cls_or_name) in [type, str
                                  ], "should be a class or name of a class"
     name = type(cls_or_name) == str and cls_or_name or cls_or_name.__name__
-    if name in global_config:
-        if isinstance(global_config[name], SchemaDict):
-            pass
-        elif hasattr(global_config[name], "__dict__"):
-            # support instance return directly
-            return global_config[name]
-        else:
-            raise ValueError("The module {} is not registered".format(name))
+    if name in global_config and isinstance(global_config[name], SchemaDict):
+        pass
+    elif name in global_config and hasattr(global_config[name], "__dict__"):
+        # support instance return directly
+        return global_config[name]
     else:
-        raise ValueError("The module {} is not registered".format(name))
-
+        raise ValueError(f"The module {name} is not registered")
     config = global_config[name]
     cls = getattr(config.pymodule, name)
     cls_kwargs = {}
-    cls_kwargs.update(global_config[name])
-
+    cls_kwargs |= config
     # parse `shared` annoation of registered modules
     if getattr(config, 'shared', None):
         for k in config.shared:
@@ -243,7 +237,7 @@ def create(cls_or_name, **kwargs):
 
     # parse `inject` annoation of registered modules
     if getattr(cls, 'from_config', None):
-        cls_kwargs.update(cls.from_config(config, **kwargs))
+        cls_kwargs |= cls.from_config(config, **kwargs)
 
     if getattr(config, 'inject', None):
         for k in config.inject:
@@ -257,9 +251,7 @@ def create(cls_or_name, **kwargs):
                     continue
                 inject_name = str(target_key['name'])
                 if inject_name not in global_config:
-                    raise ValueError(
-                        "Missing injection name {} and check it's name in cfg file".
-                        format(k))
+                    raise ValueError(f"Missing injection name {k} and check it's name in cfg file")
                 target = global_config[inject_name]
                 for i, v in target_key.items():
                     if i == 'name':

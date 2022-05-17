@@ -118,7 +118,6 @@ class KeyPointDetector(Detector):
         # postprocess output of predictor
         if KEYPOINT_SUPPORT_MODELS[
                 self.pred_config.arch] == 'keypoint_bottomup':
-            results = {}
             h, w = inputs['im_shape'][0]
             preds = [np_heatmap]
             if np_masks is not None:
@@ -126,23 +125,21 @@ class KeyPointDetector(Detector):
             preds += [h, w]
             keypoint_postprocess = HrHRNetPostProcess()
             kpts, scores = keypoint_postprocess(*preds)
-            results['keypoint'] = kpts
-            results['score'] = scores
+            results = {'keypoint': kpts, 'score': scores}
             return results
         elif KEYPOINT_SUPPORT_MODELS[
                 self.pred_config.arch] == 'keypoint_topdown':
-            results = {}
             imshape = inputs['im_shape'][:, ::-1]
             center = np.round(imshape / 2.)
             scale = imshape / 200.
             keypoint_postprocess = HRNetPostProcess(use_dark=self.use_dark)
             kpts, scores = keypoint_postprocess(np_heatmap, center, scale)
-            results['keypoint'] = kpts
-            results['score'] = scores
+            results = {'keypoint': kpts, 'score': scores}
             return results
         else:
-            raise ValueError("Unsupported arch: {}, expect {}".format(
-                self.pred_config.arch, KEYPOINT_SUPPORT_MODELS))
+            raise ValueError(
+                f"Unsupported arch: {self.pred_config.arch}, expect {KEYPOINT_SUPPORT_MODELS}"
+            )
 
     def predict(self, repeats=1):
         '''
@@ -156,7 +153,7 @@ class KeyPointDetector(Detector):
         '''
         # model prediction
         np_heatmap, np_masks = None, None
-        for i in range(repeats):
+        for _ in range(repeats):
             self.predictor.run()
             output_names = self.predictor.get_output_names()
             heatmap_tensor = self.predictor.get_output_handle(output_names[0])
@@ -169,8 +166,7 @@ class KeyPointDetector(Detector):
                     masks_tensor.copy_to_cpu(), heat_k.copy_to_cpu(),
                     inds_k.copy_to_cpu()
                 ]
-        result = dict(heatmap=np_heatmap, masks=np_masks)
-        return result
+        return dict(heatmap=np_heatmap, masks=np_masks)
 
     def predict_image(self,
                       image_list,
@@ -236,7 +232,7 @@ class KeyPointDetector(Detector):
 
             results.append(result)
             if visual:
-                print('Test iter {}'.format(i))
+                print(f'Test iter {i}')
         results = self.merge_batch_result(results)
         return results
 
@@ -260,15 +256,14 @@ class KeyPointDetector(Detector):
         fourcc = cv2.VideoWriter_fourcc(* 'mp4v')
         writer = cv2.VideoWriter(out_path, fourcc, fps, (width, height))
         index = 1
-        while (1):
+        while 1:
             ret, frame = capture.read()
             if not ret:
                 break
             print('detect frame: %d' % (index))
             index += 1
             results = self.predict_image([frame], visual=False)
-            im_results = {}
-            im_results['keypoint'] = [results['keypoint'], results['score']]
+            im_results = {'keypoint': [results['keypoint'], results['score']]}
             im = visualize_pose(
                 frame, im_results, visual_thresh=self.threshold, returnimg=True)
             writer.write(im)
@@ -287,11 +282,8 @@ def create_inputs(imgs, im_info):
     Returns:
         inputs (dict): input of model
     """
-    inputs = {}
-    inputs['image'] = np.stack(imgs, axis=0).astype('float32')
-    im_shape = []
-    for e in im_info:
-        im_shape.append(np.array((e['im_shape'])).astype('float32'))
+    inputs = {'image': np.stack(imgs, axis=0).astype('float32')}
+    im_shape = [np.array((e['im_shape'])).astype('float32') for e in im_info]
     inputs['im_shape'] = np.stack(im_shape, axis=0)
     return inputs
 
@@ -315,7 +307,7 @@ class PredictConfig_KeyPoint():
         self.labels = yml_conf['label_list']
         self.tagmap = False
         self.use_dynamic_shape = yml_conf['use_dynamic_shape']
-        if 'keypoint_bottomup' == self.archcls:
+        if self.archcls == 'keypoint_bottomup':
             self.tagmap = True
         self.print_config()
 
@@ -332,10 +324,10 @@ class PredictConfig_KeyPoint():
 
     def print_config(self):
         print('-----------  Model Configuration -----------')
-        print('%s: %s' % ('Model Arch', self.arch))
-        print('%s: ' % ('Transform Order'))
+        print(f'Model Arch: {self.arch}')
+        print('Transform Order: ')
         for op_info in self.preprocess_infos:
-            print('--%s: %s' % ('transform op', op_info['type']))
+            print(f"--transform op: {op_info['type']}")
         print('--------------------------------------------')
 
 

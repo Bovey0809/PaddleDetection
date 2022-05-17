@@ -114,7 +114,7 @@ class SDE_Detector(Detector):
         self.num_classes = len(self.pred_config.labels)
 
         # reid config
-        self.use_reid = False if reid_model_dir is None else True
+        self.use_reid = reid_model_dir is not None
         if self.use_reid:
             self.reid_pred_config = self.set_config(reid_model_dir)
             self.reid_predictor, self.config = load_predictor(
@@ -140,8 +140,8 @@ class SDE_Detector(Detector):
         cfg = tracker_cfg[tracker_cfg['type']]
 
         # tracker config
-        self.use_deepsort_tracker = True if tracker_cfg[
-            'type'] == 'DeepSORTTracker' else False
+        self.use_deepsort_tracker = tracker_cfg['type'] == 'DeepSORTTracker'
+
         if self.use_deepsort_tracker:
             # use DeepSORTTracker
             if self.reid_pred_config is not None and hasattr(
@@ -181,7 +181,7 @@ class SDE_Detector(Detector):
                 conf_thres=conf_thres,
                 low_conf_thres=low_conf_thres, )
 
-        self.do_mtmct = False if mtmct_dir is None else True
+        self.do_mtmct = mtmct_dir is not None
         self.mtmct_dir = mtmct_dir
 
     def postprocess(self, inputs, result):
@@ -223,7 +223,7 @@ class SDE_Detector(Detector):
             input_tensor.copy_from_cpu(det_results[input_names[i]])
 
         # model prediction
-        for i in range(repeats):
+        for _ in range(repeats):
             self.reid_predictor.run()
             output_names = self.reid_predictor.get_output_names()
             feature_tensor = self.reid_predictor.get_output_handle(output_names[
@@ -272,15 +272,11 @@ class SDE_Detector(Detector):
                 tracking_outs['feat_data'] = {}
                 for _tlbr, _id, _feat in zip(online_tlbrs, online_ids,
                                              online_feats):
-                    feat_data = {}
-                    feat_data['bbox'] = _tlbr
-                    feat_data['frame'] = f"{frame_id:06d}"
-                    feat_data['id'] = _id
+                    feat_data = {'bbox': _tlbr, 'frame': f"{frame_id:06d}", 'id': _id}
                     _imgname = f'{seq_name}_{_id}_{frame_id}.jpg'
                     feat_data['imgname'] = _imgname
                     feat_data['feat'] = _feat
                     tracking_outs['feat_data'].update({_imgname: feat_data})
-            return tracking_outs
         else:
             # use ByteTracker, support multiple class
             online_tlwhs = defaultdict(list)
@@ -320,23 +316,19 @@ class SDE_Detector(Detector):
                 tracking_outs['feat_data'] = {}
                 for _tlbr, _id, _feat in zip(online_tlbrs[0], online_ids[0],
                                              online_feats[0]):
-                    feat_data = {}
-                    feat_data['bbox'] = _tlbr
-                    feat_data['frame'] = f"{frame_id:06d}"
-                    feat_data['id'] = _id
+                    feat_data = {'bbox': _tlbr, 'frame': f"{frame_id:06d}", 'id': _id}
                     _imgname = f'{seq_name}_{_id}_{frame_id}.jpg'
                     feat_data['imgname'] = _imgname
                     feat_data['feat'] = _feat
                     tracking_outs['feat_data'].update({_imgname: feat_data})
-                return tracking_outs
-
             else:
                 tracking_outs = {
                     'online_tlwhs': online_tlwhs,
                     'online_scores': online_scores,
                     'online_ids': online_ids,
                 }
-                return tracking_outs
+
+        return tracking_outs
 
     def predict_image(self,
                       image_list,
@@ -352,9 +344,8 @@ class SDE_Detector(Detector):
         else:
             mot_results = []
         for frame_id, img_file in enumerate(image_list):
-            if self.do_mtmct:
-                if frame_id % 10 == 0:
-                    print('Tracking frame: %d' % (frame_id))
+            if self.do_mtmct and frame_id % 10 == 0:
+                print('Tracking frame: %d' % (frame_id))
             batch_image_list = [img_file]  # bs=1 in MOT model
             frame, _ = decode_image(img_file, {})
             if run_benchmark:
@@ -431,7 +422,7 @@ class SDE_Detector(Detector):
 
             if visual:
                 if len(image_list) > 1 and frame_id % 10 == 0:
-                    print('Tracking frame {}'.format(frame_id))
+                    print(f'Tracking frame {frame_id}')
                 frame, _ = decode_image(img_file, {})
                 if isinstance(online_tlwhs, defaultdict):
                     im = plot_tracking_dict(
@@ -455,10 +446,7 @@ class SDE_Detector(Detector):
                 cv2.imwrite(
                     os.path.join(save_dir, '{:05d}.jpg'.format(frame_id)), im)
 
-        if self.do_mtmct:
-            return mot_features_dict
-        else:
-            return mot_results
+        return mot_features_dict if self.do_mtmct else mot_results
 
     def predict_video(self, video_file, camera_id):
         video_out_name = 'output.mp4'
@@ -492,14 +480,14 @@ class SDE_Detector(Detector):
         entrance = None
         records = None
         if self.draw_center_traj:
-            center_traj = [{} for i in range(num_classes)]
+            center_traj = [{} for _ in range(num_classes)]
         if num_classes == 1:
             id_set = set()
             interval_id_set = set()
-            in_id_list = list()
-            out_id_list = list()
-            prev_center = dict()
-            records = list()
+            in_id_list = []
+            out_id_list = []
+            prev_center = {}
+            records = []
             entrance = [0, height / 2., width, height / 2.]
         video_fps = fps
 
@@ -578,12 +566,10 @@ class SDE_Detector(Detector):
             result_filename = os.path.join(
                 self.output_dir,
                 video_out_name.split('.')[-2] + '_flow_statistic.txt')
-            f = open(result_filename, 'w')
-            for line in records:
-                f.write(line)
-            print('Flow statistic save in {}'.format(result_filename))
-            f.close()
-
+            with open(result_filename, 'w') as f:
+                for line in records:
+                    f.write(line)
+                print(f'Flow statistic save in {result_filename}')
         writer.release()
 
     def predict_mtmct(self, mtmct_dir, mtmct_cfg):
@@ -607,7 +593,7 @@ class SDE_Detector(Detector):
         roi_dir = mtmct_cfg.get('roi_dir', False)
 
         mot_list_breaks = []
-        cid_tid_dict = dict()
+        cid_tid_dict = {}
 
         output_dir = self.output_dir
         if not os.path.exists(output_dir):
@@ -618,22 +604,21 @@ class SDE_Detector(Detector):
             fpath = os.path.join(mtmct_dir, seq)
             if os.path.isfile(fpath) and _is_valid_video(fpath):
                 seq = seq.split('.')[-2]
-                print('ffmpeg processing of video {}'.format(fpath))
+                print(f'ffmpeg processing of video {fpath}')
                 frames_path = video2frames(
                     video_path=fpath, outpath=mtmct_dir, frame_rate=25)
                 fpath = os.path.join(mtmct_dir, seq)
 
             if os.path.isdir(fpath) == False:
-                print('{} is not a image folder.'.format(fpath))
+                print(f'{fpath} is not a image folder.')
                 continue
             if os.path.exists(os.path.join(fpath, 'img1')):
                 fpath = os.path.join(fpath, 'img1')
-            assert os.path.isdir(fpath), '{} should be a directory'.format(
-                fpath)
+            assert os.path.isdir(fpath), f'{fpath} should be a directory'
             image_list = glob.glob(os.path.join(fpath, '*.jpg'))
             image_list.sort()
-            assert len(image_list) > 0, '{} has no images.'.format(fpath)
-            print('start tracking seq: {}'.format(seq))
+            assert len(image_list) > 0, f'{fpath} has no images.'
+            print(f'start tracking seq: {seq}')
 
             mot_features_dict = self.predict_image(
                 image_list, visual=False, seq_name=seq)

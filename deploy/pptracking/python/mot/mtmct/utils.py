@@ -36,24 +36,21 @@ __all__ = [
 
 
 def parse_pt(mot_feature, zones=None):
-    mot_list = dict()
+    mot_list = {}
     for line in mot_feature:
         fid = int(re.sub('[a-z,A-Z]', "", mot_feature[line]['frame']))
         tid = mot_feature[line]['id']
         bbox = list(map(lambda x: int(float(x)), mot_feature[line]['bbox']))
         if tid not in mot_list:
-            mot_list[tid] = dict()
+            mot_list[tid] = {}
         out_dict = mot_feature[line]
-        if zones is not None:
-            out_dict['zone'] = zones.get_zone(bbox)
-        else:
-            out_dict['zone'] = None
+        out_dict['zone'] = zones.get_zone(bbox) if zones is not None else None
         mot_list[tid][fid] = out_dict
     return mot_list
 
 
 def gen_new_mot(mot_list):
-    out_dict = dict()
+    out_dict = {}
     for tracklet in mot_list:
         tracklet = mot_list[tracklet]
         for f in tracklet:
@@ -87,7 +84,7 @@ def compute_P2(prb_feats, gal_feats, gal_labels, la=3.0):
 
 
 def parse_bias(cameras_bias):
-    cid_bias = dict()
+    cid_bias = {}
     for cameras in cameras_bias.keys():
         cameras_id = re.sub('[a-z,A-Z]', "", cameras)
         cameras_id = int(cameras_id)
@@ -126,7 +123,7 @@ def mergesetfeat(in_feats, in_labels, in_tracks):
 
 
 def mergesetfeat3(X, labels, gX, glabels, beta=0.08, knn=20, lr=0.5):
-    for i in range(0, X.shape[0]):
+    for i in range(X.shape[0]):
         if i % 1000 == 0:
             print('feat3:%d/%d' % (i, X.shape[0]))
         knnX = gX[glabels[:, 1] != labels[i, 1], :]
@@ -169,11 +166,11 @@ def run_fac(prb_feats,
             prb_epoch=2,
             gal_epoch=3):
     gal_feats_new = gal_feats.copy()
-    for i in range(prb_epoch):
+    for _ in range(prb_epoch):
         gal_feats_new = mergesetfeat3(gal_feats_new, gal_labels, gal_feats,
                                       gal_labels, beta, knn, lr)
     prb_feats_new = prb_feats.copy()
-    for i in range(gal_epoch):
+    for _ in range(gal_epoch):
         prb_feats_new = mergesetfeat3(prb_feats_new, prb_labels, gal_feats_new,
                                       gal_labels, beta, knn, lr)
     return prb_feats_new, gal_feats_new
@@ -182,15 +179,11 @@ def run_fac(prb_feats,
 def euclidean_distance(qf, gf):
     m = qf.shape[0]
     n = gf.shape[0]
-    dist_mat = 2 - 2 * np.matmul(qf, gf.T)
-    return dist_mat
+    return 2 - 2 * np.matmul(qf, gf.T)
 
 
 def find_topk(a, k, axis=-1, largest=True, sorted=True):
-    if axis is None:
-        axis_size = a.size
-    else:
-        axis_size = a.shape[axis]
+    axis_size = a.size if axis is None else a.shape[axis]
     assert 1 <= k <= axis_size
 
     a = np.asanyarray(a)
@@ -323,9 +316,7 @@ def ReRank2(probFea, galFea, k1=20, k2=6, lambda_value=0.3):
         del V_qe
     del initial_rank
     gc.collect()  # empty memory
-    invIndex = []
-    for i in range(all_num):
-        invIndex.append(np.where(V[:, i] != 0)[0])
+    invIndex = [np.where(V[:, i] != 0)[0] for i in range(all_num)]
     jaccard_dist = np.zeros((query_num, all_num), dtype=np.float32)
     for i in tqdm(range(query_num)):
         temp_min = np.zeros(shape=[1, all_num], dtype=np.float32)
@@ -379,24 +370,19 @@ def normalize(nparray, axis=0):
 
 
 def get_match(cluster_labels):
-    cluster_dict = dict()
-    cluster = list()
+    cluster_dict = {}
     for i, l in enumerate(cluster_labels):
         if l in list(cluster_dict.keys()):
             cluster_dict[l].append(i)
         else:
             cluster_dict[l] = [i]
-    for idx in cluster_dict:
-        cluster.append(cluster_dict[idx])
-    return cluster
+    return list(cluster_dict.values())
 
 
 def get_cid_tid(cluster_labels, cid_tids):
-    cluster = list()
+    cluster = []
     for labels in cluster_labels:
-        cid_tid_list = list()
-        for label in labels:
-            cid_tid_list.append(cid_tids[label])
+        cid_tid_list = [cid_tids[label] for label in labels]
         cluster.append(cid_tid_list)
     return cluster
 
@@ -411,7 +397,7 @@ def combin_feature(cid_tid_dict, sub_cluster):
 
 
 def combin_cluster(sub_labels, cid_tids):
-    cluster = list()
+    cluster = []
     for sub_c_to_c in sub_labels:
         if len(cluster) < 1:
             cluster = sub_labels[sub_c_to_c]
@@ -426,10 +412,10 @@ def combin_cluster(sub_labels, cid_tids):
                     break
             if not is_add:
                 cluster.append(c_ts)
-    labels = list()
+    labels = []
     num_tr = 0
     for c_ts in cluster:
-        label_list = list()
+        label_list = []
         for c_t in c_ts:
             label_list.append(cid_tids.index(c_t))
             num_tr += 1
@@ -439,13 +425,13 @@ def combin_cluster(sub_labels, cid_tids):
 
 
 def parse_pt_gt(mot_feature):
-    img_rects = dict()
+    img_rects = {}
     for line in mot_feature:
         fid = int(re.sub('[a-z,A-Z]', "", mot_feature[line]['frame']))
         tid = mot_feature[line]['id']
         rect = list(map(lambda x: int(float(x)), mot_feature[line]['bbox']))
         if fid not in img_rects:
-            img_rects[fid] = list()
+            img_rects[fid] = []
         rect.insert(0, tid)
         img_rects[fid].append(rect)
     return img_rects
@@ -489,8 +475,7 @@ def compare_dataframes_mtmc(gts, ts):
     metrics = list(mm.metrics.motchallenge_metrics)
     metrics.extend(['num_frames', 'idfp', 'idfn', 'idtp'])
     mh = mm.metrics.create()
-    summary = mh.compute(multiCamAcc, metrics=metrics, name='MultiCam')
-    return summary
+    return mh.compute(multiCamAcc, metrics=metrics, name='MultiCam')
 
 
 def get_sim_matrix(cid_tid_dict,
@@ -573,16 +558,16 @@ def getData(fpath, names=None, sep='\s+|\t+|,'):
             stream with optionally assigned column names. No index is set on the data.
     """
     try:
-        df = pd.read_csv(
+        return pd.read_csv(
             fpath,
             sep=sep,
             index_col=None,
             skipinitialspace=True,
             header=None,
             names=names,
-            engine='python')
-        return df
+            engine='python',
+        )
+
 
     except Exception as e:
-        raise ValueError("Could not read input from %s. Error: %s" %
-                         (fpath, repr(e)))
+        raise ValueError(f"Could not read input from {fpath}. Error: {repr(e)}")

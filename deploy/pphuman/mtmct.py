@@ -30,23 +30,29 @@ warnings.filterwarnings("ignore")
 
 def gen_restxt(output_dir_filename, map_tid, cid_tid_dict):
     pattern = re.compile(r'c(\d)_t(\d)')
-    f_w = open(output_dir_filename, 'w')
-    for key, res in cid_tid_dict.items():
-        cid, tid = pattern.search(key).groups()
-        cid = int(cid) + 1
-        rects = res["rects"]
-        frames = res["frames"]
-        for idx, bbox in enumerate(rects):
-            bbox[0][3:] -= bbox[0][1:3]
-            fid = frames[idx] + 1
-            rect = [max(int(x), 0) for x in bbox[0][1:]]
-            if key in map_tid:
-                new_tid = map_tid[key]
-                f_w.write(
-                    str(cid) + ' ' + str(new_tid) + ' ' + str(fid) + ' ' +
-                    ' '.join(map(str, rect)) + '\n')
-    print('gen_res: write file in {}'.format(output_dir_filename))
-    f_w.close()
+    with open(output_dir_filename, 'w') as f_w:
+        for key, res in cid_tid_dict.items():
+            cid, tid = pattern.search(key).groups()
+            cid = int(cid) + 1
+            rects = res["rects"]
+            frames = res["frames"]
+            for idx, bbox in enumerate(rects):
+                bbox[0][3:] -= bbox[0][1:3]
+                fid = frames[idx] + 1
+                if key in map_tid:
+                    new_tid = map_tid[key]
+                    rect = [max(int(x), 0) for x in bbox[0][1:]]
+                    f_w.write(
+                        (
+                            (
+                                f'{str(cid)} {str(new_tid)} {str(fid)} '
+                                + ' '.join(map(str, rect))
+                            )
+                            + '\n'
+                        )
+                    )
+
+        print(f'gen_res: write file in {output_dir_filename}')
 
 
 def get_mtmct_matching_results(pred_mtmct_file, secs_interval=0.5,
@@ -58,7 +64,7 @@ def get_mtmct_matching_results(pred_mtmct_file, secs_interval=0.5,
     # each line in res: 'cid, tid, fid, x1, y1, w, h'
 
     camera_tids = []
-    camera_results = dict()
+    camera_results = {}
     for c_id in camera_ids:
         camera_results[c_id] = res[res[:, 0] == c_id]
         tids = np.unique(camera_results[c_id][:, 1])
@@ -69,15 +75,15 @@ def get_mtmct_matching_results(pred_mtmct_file, secs_interval=0.5,
     common_tids = reduce(np.intersect1d, camera_tids)
 
     # get mtmct matching results by cid_tid_fid_results[c_id][t_id][f_id]
-    cid_tid_fid_results = dict()
-    cid_tid_to_fids = dict()
+    cid_tid_fid_results = {}
+    cid_tid_to_fids = {}
     interval = int(secs_interval * video_fps)  # preferably less than 10
     for c_id in camera_ids:
-        cid_tid_fid_results[c_id] = dict()
-        cid_tid_to_fids[c_id] = dict()
+        cid_tid_fid_results[c_id] = {}
+        cid_tid_to_fids[c_id] = {}
         for t_id in common_tids:
             tid_mask = camera_results[c_id][:, 1] == t_id
-            cid_tid_fid_results[c_id][t_id] = dict()
+            cid_tid_fid_results[c_id][t_id] = {}
 
             camera_trackid_results = camera_results[c_id][tid_mask]
             fids = np.unique(camera_trackid_results[:, 2])
@@ -114,7 +120,7 @@ def save_mtmct_vis_results(camera_results, captures, output_dir):
         basename = os.path.basename(video_file)
         video_out_name = "vis_" + basename
         out_path = os.path.join(save_dir, video_out_name)
-        print("Start visualizing output video: {}".format(out_path))
+        print(f"Start visualizing output video: {out_path}")
 
         # Get Video info : resolution, fps, frame count
         width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -163,8 +169,7 @@ def cosine_similarity(x, y, eps=1e-12):
             y, axis=1, keepdims=True)
     x_norm = x / np.maximum(x_n, eps * np.ones_like(x_n))
     y_norm = y / np.maximum(y_n, eps * np.ones_like(y_n))
-    sim_mt = np.dot(x_norm, y_norm.T)
-    return sim_mt
+    return np.dot(x_norm, y_norm.T)
 
 
 def get_cosine(x, y, eps=1e-12):
@@ -174,8 +179,7 @@ def get_cosine(x, y, eps=1e-12):
     -> cosine_distance = abs(-cosine_distance) to make it
     similar in behaviour to euclidean distance
     """
-    sim_mt = cosine_similarity(x, y, eps)
-    return sim_mt
+    return cosine_similarity(x, y, eps)
 
 
 def get_dist_mat(x, y, func_name="euclidean"):
@@ -183,7 +187,7 @@ def get_dist_mat(x, y, func_name="euclidean"):
         dist_mat = get_cosine(x, y)
     elif func_name == "euclidean":
         dist_mat = get_euclidean(x, y)
-    print("Using {} as distance function during evaluation".format(func_name))
+    print(f"Using {func_name} as distance function during evaluation")
     return dist_mat
 
 
@@ -218,24 +222,19 @@ def get_sim_matrix_new(cid_tid_dict, cid_tids):
 
 
 def get_match(cluster_labels):
-    cluster_dict = dict()
-    cluster = list()
+    cluster_dict = {}
     for i, l in enumerate(cluster_labels):
         if l in list(cluster_dict.keys()):
             cluster_dict[l].append(i)
         else:
             cluster_dict[l] = [i]
-    for idx in cluster_dict:
-        cluster.append(cluster_dict[idx])
-    return cluster
+    return list(cluster_dict.values())
 
 
 def get_cid_tid(cluster_labels, cid_tids):
-    cluster = list()
+    cluster = []
     for labels in cluster_labels:
-        cid_tid_list = list()
-        for label in labels:
-            cid_tid_list.append(cid_tids[label])
+        cid_tid_list = [cid_tids[label] for label in labels]
         cluster.append(cid_tid_list)
     return cluster
 
@@ -262,16 +261,14 @@ def sub_cluster(cid_tid_dict):
     cid_tid_dict: all camera_id and track_id
     '''
     #get all keys
-    cid_tids = sorted([key for key in cid_tid_dict.keys()])
+    cid_tids = sorted(list(cid_tid_dict.keys()))
 
     #cluster all trackid
     clu = get_labels(cid_tid_dict, cid_tids)
 
     #relabel every cluster groups
-    new_clu = list()
-    for c_list in clu:
-        new_clu.append([cid_tids[c] for c in c_list])
-    cid_tid_label = dict()
+    new_clu = [[cid_tids[c] for c in c_list] for c_list in clu]
+    cid_tid_label = {}
     for i, c_list in enumerate(new_clu):
         for c in c_list:
             cid_tid_label[c] = i + 1
@@ -296,10 +293,7 @@ def distill_idfeat(mot_res):
         qualities_new = qualities_list
         feature_new = feature_list
 
-    #if available frames number is more than 200, take one frame data per 20 frames
-    skipf = 1
-    if len(qualities_new) > 20:
-        skipf = 2
+    skipf = 2 if len(qualities_new) > 20 else 1
     quality_skip = np.array(qualities_new[::skipf])
     feature_skip = np.array(feature_new[::skipf])
 
@@ -310,16 +304,14 @@ def distill_idfeat(mot_res):
     else:
         topk_feat = feature_skip[topk_argq]
 
-    #get final features by mean or cluster, at most take five
-    mean_feat = np.mean(topk_feat[:5], axis=0)
-    return mean_feat
+    return np.mean(topk_feat[:5], axis=0)
 
 
 def res2dict(multi_res):
     cid_tid_dict = {}
     for cid, c_res in enumerate(multi_res):
         for tid, res in c_res.items():
-            key = "c" + str(cid) + "_t" + str(tid)
+            key = f"c{str(cid)}_t{str(tid)}"
             if key not in cid_tid_dict:
                 if len(res["rects"]) < 10:
                     continue

@@ -35,7 +35,7 @@ def image_preprocess(img_path, re_shape):
 
 def get_color_map_list(num_classes):
     color_map = num_classes * [0, 0, 0]
-    for i in range(0, num_classes):
+    for i in range(num_classes):
         j = 0
         lab = i
         while lab:
@@ -63,13 +63,17 @@ def draw_box(srcimg, results, class_label):
         color = tuple(clsid2color[classid])
 
         cv2.rectangle(srcimg, (xmin, ymin), (xmax, ymax), color, thickness=2)
-        print(label_list[classid] + ': ' + str(round(conf, 3)))
+        print(f'{label_list[classid]}: {str(round(conf, 3))}')
         cv2.putText(
             srcimg,
-            label_list[classid] + ':' + str(round(conf, 3)), (xmin, ymin - 10),
+            f'{label_list[classid]}:{str(round(conf, 3))}',
+            (xmin, ymin - 10),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.8, (0, 255, 0),
-            thickness=2)
+            0.8,
+            (0, 255, 0),
+            thickness=2,
+        )
+
     return srcimg
 
 
@@ -163,13 +167,13 @@ class PicoDetNMS(object):
     def __call__(self, decode_boxes, select_scores):
         batch_size = 1
         out_boxes_list = []
-        for batch_id in range(batch_size):
+        for _ in range(batch_size):
             # nms
             bboxes = np.concatenate(decode_boxes, axis=0)
             confidences = np.concatenate(select_scores, axis=0)
             picked_box_probs = []
             picked_labels = []
-            for class_index in range(0, confidences.shape[1]):
+            for class_index in range(confidences.shape[1]):
                 probs = confidences[:, class_index]
                 mask = probs > self.score_threshold
                 probs = probs[mask]
@@ -185,7 +189,7 @@ class PicoDetNMS(object):
                 picked_box_probs.append(box_probs)
                 picked_labels.extend([class_index] * box_probs.shape[0])
 
-            if len(picked_box_probs) == 0:
+            if not picked_box_probs:
                 out_boxes_list.append(np.empty((0, 4)))
 
             else:
@@ -219,7 +223,7 @@ def detect(img_file, compiled_model, class_label):
 
     decode_boxes = []
     select_scores = []
-    num_outs = int(len(result_ie) / 2)
+    num_outs = len(result_ie) // 2
     for out_idx in range(num_outs):
         decode_boxes.append(result_ie[out_idx])
         select_scores.append(result_ie[out_idx + num_outs])

@@ -51,7 +51,7 @@ def genGtFile(seqPath, outPath, classes=[]):
                 if old_idx != int(line[1]):
                     id_idx += 1
                     old_idx = int(line[1])
-                newLine = line[0:6]
+                newLine = line[:6]
                 newLine[1] = str(id_idx)
                 newLine.append('1')
                 if (len(classes) > 1 and isExtractMultiClass):
@@ -70,7 +70,7 @@ def genGtFile(seqPath, outPath, classes=[]):
 
 
 def genSeqInfo(img1Path, seqName):
-    imgPaths = glob.glob(img1Path + '/*.jpg')
+    imgPaths = glob.glob(f'{img1Path}/*.jpg')
     seqLength = len(imgPaths)
     if seqLength > 0:
         image1 = cv2.imread(imgPaths[0])
@@ -81,7 +81,7 @@ def genSeqInfo(img1Path, seqName):
         imgWidth = 0
     seqInfoStr = f'''[Sequence]\nname={seqName}\nimDir=img1\nframeRate=30\nseqLength={seqLength}\nimWidth={imgWidth}\nimHeight={imgHeight}\nimExt=.jpg'''
     seqInfoPath = img1Path.replace('/img1', '')
-    with open(seqInfoPath + '/seqinfo.ini', 'w') as seqFile:
+    with open(f'{seqInfoPath}/seqinfo.ini', 'w') as seqFile:
         seqFile.write(seqInfoStr)
 
 
@@ -93,8 +93,10 @@ def copyImg(img1Path, gtTxtPath, outputFileName):
             imgIdx = int(line.split(',')[0])
             if imgIdx not in imgList:
                 imgList.append(imgIdx)
-                seqName = gtTxtPath.replace('./{}/'.format(outputFileName),
-                                            '').replace('/gt/gt.txt', '')
+                seqName = gtTxtPath.replace(
+                    f'./{outputFileName}/', ''
+                ).replace('/gt/gt.txt', '')
+
                 sourceImgPath = osp.join('./sequences', seqName,
                                          '{:07d}.jpg'.format(imgIdx))
                 os.system(f'cp {sourceImgPath} {img1Path}')
@@ -121,12 +123,12 @@ def genMotLabels(datasetPath, outputFileName, classes=['2']):
 def deleteFileWhichImg1IsEmpty(mot16Path, dataType='train'):
     path = mot16Path
     data_images_train = osp.join(path, 'images', f'{dataType}')
-    data_images_train_seqs = glob.glob(data_images_train + '/*')
+    data_images_train_seqs = glob.glob(f'{data_images_train}/*')
     if (len(data_images_train_seqs) == 0):
         print('dataset is empty!')
     for data_images_train_seq in data_images_train_seqs:
         data_images_train_seq_img1 = osp.join(data_images_train_seq, 'img1')
-        if len(glob.glob(data_images_train_seq_img1 + '/*.jpg')) == 0:
+        if len(glob.glob(f'{data_images_train_seq_img1}/*.jpg')) == 0:
             print(f"os.system(rm -rf {data_images_train_seq})")
             os.system(f'rm -rf {data_images_train_seq}')
 
@@ -171,7 +173,7 @@ def VisualDataset(datasetPath, phase='train', seqName='', frameId=1):
     image_path = label_with_idPath.replace('labels_with_ids', 'images').replace(
         '.txt', '.jpg')
     seqInfoPath = str.join('/', image_path.split('/')[:-2])
-    seqInfoPath = seqInfoPath + '/seqinfo.ini'
+    seqInfoPath = f'{seqInfoPath}/seqinfo.ini'
     seq_info = open(seqInfoPath).read()
     width = int(seq_info[seq_info.find('imWidth=') + 8:seq_info.find(
         '\nimHeight')])
@@ -198,23 +200,22 @@ def VisualDataset(datasetPath, phase='train', seqName='', frameId=1):
 
 def gen_image_list(dataPath, datType):
     inputPath = f'{dataPath}/images/{datType}'
-    pathList = glob.glob(inputPath + '/*')
+    pathList = glob.glob(f'{inputPath}/*')
     pathList = sorted(pathList)
     allImageList = []
     for pathSingle in pathList:
         imgList = sorted(glob.glob(osp.join(pathSingle, 'img1', '*.jpg')))
-        for imgPath in imgList:
-            allImageList.append(imgPath)
+        allImageList.extend(iter(imgList))
     with open(f'{dataPath}.{datType}', 'w') as image_list_file:
         allImageListStr = str.join('\n', allImageList)
         image_list_file.write(allImageListStr)
 
 
 def gen_labels_mot(MOT_data, phase='train'):
-    seq_root = './{}/images/{}'.format(MOT_data, phase)
-    label_root = './{}/labels_with_ids/{}'.format(MOT_data, phase)
+    seq_root = f'./{MOT_data}/images/{phase}'
+    label_root = f'./{MOT_data}/labels_with_ids/{phase}'
     mkdir_if_missing(label_root)
-    seqs = [s for s in os.listdir(seq_root)]
+    seqs = list(os.listdir(seq_root))
     print('seqs => ', seqs)
     tid_curr = 0
     tid_last = -1
@@ -236,7 +237,7 @@ def gen_labels_mot(MOT_data, phase='train'):
             #     continue
             fid = int(fid)
             tid = int(tid)
-            if not tid == tid_last:
+            if tid != tid_last:
                 tid_curr += 1
                 tid_last = tid
             x += w / 2
